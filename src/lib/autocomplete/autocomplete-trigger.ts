@@ -52,7 +52,7 @@ export const MD_AUTOCOMPLETE_VALUE_ACCESSOR: any = {
 };
 
 @Directive({
-  selector: 'input[mdAutocomplete], input[matAutocomplete]',
+  selector: 'input[mdAutocomplete], input[matAutocomplete], textarea[mdAutocomplete], textarea[matAutocomplete]',
   host: {
     'role': 'combobox',
     'autocomplete': 'off',
@@ -322,7 +322,13 @@ export class MdAutocompleteTrigger implements ControlValueAccessor, OnDestroy {
 
   private _setTriggerValue(value: any): void {
     const toDisplay = this.autocomplete.displayWith ? this.autocomplete.displayWith(value) : value;
-    this._element.nativeElement.value = toDisplay || '';
+    if (this._matAutocomplete.setLastWord) {
+      let splittedValue = this._element.nativeElement.value.split(' ');
+      splittedValue[splittedValue.length - 1] = toDisplay || '';
+      this._element.nativeElement.value = splittedValue.join(' ');
+    } else {
+      this._element.nativeElement.value = toDisplay || '';
+    }
   }
 
    /**

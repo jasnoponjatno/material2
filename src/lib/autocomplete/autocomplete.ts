@@ -50,6 +50,8 @@ export class MdAutocomplete implements AfterContentInit {
   /** Function that maps an option's control value to its display value in the trigger. */
   @Input() displayWith: (value: any) => string;
 
+  @Input() setLastWord: boolean = false;
+
   /** Unique ID to be used by autocomplete trigger's "aria-owns" property. */
   id: string = `md-autocomplete-${_uniqueAutocompleteIdCounter++}`;
 
