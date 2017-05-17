@@ -323,9 +323,11 @@ export class MdAutocompleteTrigger implements ControlValueAccessor, OnDestroy {
   private _setTriggerValue(value: any): void {
     const toDisplay = this.autocomplete.displayWith ? this.autocomplete.displayWith(value) : value;
     if (this._matAutocomplete.setLastWord) {
-      let splittedValue = this._element.nativeElement.value.split(' ');
+      let splittedValue = this._element.nativeElement.value.trim().split(' ');
       splittedValue[splittedValue.length - 1] = toDisplay || '';
-      this._element.nativeElement.value = splittedValue.join(' ');
+      let newValue = splittedValue.join(' ');
+      newValue = newValue ? newValue + ' ' : '';
+      this._element.nativeElement.value = newValue;
     } else {
       this._element.nativeElement.value = toDisplay || '';
     }
