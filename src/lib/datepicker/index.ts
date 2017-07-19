@@ -1,10 +1,22 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import {NgModule} from '@angular/core';
 import {MdMonthView} from './month-view';
 import {CommonModule} from '@angular/common';
-import {StyleModule, OverlayModule, A11yModule} from '../core';
+import {A11yModule, OverlayModule, StyleModule} from '../core';
 import {MdCalendarBody} from './calendar-body';
 import {MdYearView} from './year-view';
-import {MdDatepicker, MdDatepickerContent} from './datepicker';
+import {
+  MdDatepicker,
+  MdDatepickerContent,
+  MD_DATEPICKER_SCROLL_STRATEGY_PROVIDER,
+} from './datepicker';
 import {MdDatepickerInput} from './datepicker-input';
 import {MdDialogModule} from '../dialog/index';
 import {MdCalendar} from './calendar';
@@ -50,6 +62,7 @@ export * from './year-view';
   ],
   providers: [
     MdDatepickerIntl,
+    MD_DATEPICKER_SCROLL_STRATEGY_PROVIDER,
   ],
   entryComponents: [
     MdDatepickerContent,

@@ -1,5 +1,12 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import {Injectable} from '@angular/core';
-import {ScrollStrategy} from './scroll-strategy';
 import {CloseScrollStrategy} from './close-scroll-strategy';
 import {NoopScrollStrategy} from './noop-scroll-strategy';
 import {BlockScrollStrategy} from './block-scroll-strategy';

@@ -1,3 +1,11 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import {
   AfterContentInit,
   Component,
@@ -9,6 +17,7 @@ import {
   ViewChild,
   ViewEncapsulation,
   ChangeDetectorRef,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import {MdOption} from '../core';
 import {ActiveDescendantKeyManager} from '../core/a11y/activedescendant-key-manager';
@@ -27,9 +36,10 @@ export type AutocompletePositionY = 'above' | 'below';
   templateUrl: 'autocomplete.html',
   styleUrls: ['autocomplete.css'],
   encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   exportAs: 'mdAutocomplete',
   host: {
-    '[class.mat-autocomplete]': 'true'
+    'class': 'mat-autocomplete'
   }
 })
 export class MdAutocomplete implements AfterContentInit {
@@ -43,12 +53,17 @@ export class MdAutocomplete implements AfterContentInit {
   /** Whether the autocomplete panel should be visible, depending on option length. */
   showPanel = false;
 
+  /** @docs-private */
   @ViewChild(TemplateRef) template: TemplateRef<any>;
+
+  /** Element for the panel containing the autocomplete options. */
   @ViewChild('panel') panel: ElementRef;
+
+  /** @docs-private */
   @ContentChildren(MdOption) options: QueryList<MdOption>;
 
   /** Function that maps an option's control value to its display value in the trigger. */
-  @Input() displayWith: (value: any) => string;
+  @Input() displayWith: ((value: any) => string) | null = null;
 
   @Input() setLastWord: boolean = false;
 
@@ -62,13 +77,18 @@ export class MdAutocomplete implements AfterContentInit {
   }
 
   /**
-   * Sets the panel scrollTop. This allows us to manually scroll to display
-   * options below the fold, as they are not actually being focused when active.
+   * Sets the panel scrollTop. This allows us to manually scroll to display options
+   * above or below the fold, as they are not actually being focused when active.
    */
   _setScrollTop(scrollTop: number): void {
     if (this.panel) {
       this.panel.nativeElement.scrollTop = scrollTop;
     }
+  }
+
+  /** Returns the panel's scrollTop. */
+  _getScrollTop(): number {
+    return this.panel ? this.panel.nativeElement.scrollTop : 0;
   }
 
   /** Panel should hide itself when the option list is empty. */

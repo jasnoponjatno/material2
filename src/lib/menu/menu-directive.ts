@@ -1,4 +1,10 @@
-// TODO(kara): prevent-close functionality
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
 
 import {
   AfterContentInit,
@@ -12,7 +18,10 @@ import {
   TemplateRef,
   ViewChild,
   ViewEncapsulation,
+  ElementRef,
+  ChangeDetectionStrategy,
 } from '@angular/core';
+import {AnimationEvent} from '@angular/animations';
 import {MenuPositionX, MenuPositionY} from './menu-positions';
 import {throwMdMenuInvalidPositionX, throwMdMenuInvalidPositionY} from './menu-errors';
 import {MdMenuItem} from './menu-item';
@@ -26,9 +35,9 @@ import {ESCAPE} from '../core/keyboard/keycodes';
 @Component({
   moduleId: module.id,
   selector: 'md-menu, mat-menu',
-  host: {'role': 'menu'},
   templateUrl: 'menu.html',
   styleUrls: ['menu.css'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   animations: [
     transformMenu,
@@ -46,6 +55,9 @@ export class MdMenu implements AfterContentInit, MdMenuPanel, OnDestroy {
 
   /** Config object to be passed into the menu's ngClass */
   _classList: any = {};
+
+  /** Current state of the panel animation. */
+  _panelAnimationState: 'void' | 'enter-start' | 'enter' = 'void';
 
   /** Position of the menu in the X axis. */
   @Input()
@@ -85,15 +97,21 @@ export class MdMenu implements AfterContentInit, MdMenuPanel, OnDestroy {
    */
   @Input('class')
   set classList(classes: string) {
-    this._classList = classes.split(' ').reduce((obj: any, className: string) => {
-      obj[className] = true;
-      return obj;
-    }, {});
-    this.setPositionClasses();
+    if (classes && classes.length) {
+      this._classList = classes.split(' ').reduce((obj: any, className: string) => {
+        obj[className] = true;
+        return obj;
+      }, {});
+
+      this._elementRef.nativeElement.className = '';
+      this.setPositionClasses();
+    }
   }
 
   /** Event emitted when the menu is closed. */
   @Output() close = new EventEmitter<void>();
+
+  constructor(private _elementRef: ElementRef) { }
 
   ngAfterContentInit() {
     this._keyManager = new FocusKeyManager(this.items).withWrap();
@@ -104,6 +122,9 @@ export class MdMenu implements AfterContentInit, MdMenuPanel, OnDestroy {
     if (this._tabSubscription) {
       this._tabSubscription.unsubscribe();
     }
+
+    this._emitCloseEvent();
+    this.close.complete();
   }
 
   /** Handle a keyboard event from the menu, delegating to the appropriate action. */
@@ -144,4 +165,21 @@ export class MdMenu implements AfterContentInit, MdMenuPanel, OnDestroy {
     this._classList['mat-menu-below'] = posY === 'below';
   }
 
+  /** Starts the enter animation. */
+  _startAnimation() {
+    this._panelAnimationState = 'enter-start';
+  }
+
+  /** Resets the panel animation to its initial state. */
+  _resetAnimation() {
+    this._panelAnimationState = 'void';
+  }
+
+  /** Callback that is invoked when the panel animation completes. */
+  _onAnimationDone(event: AnimationEvent) {
+    // After the initial expansion is done, trigger the second phase of the enter animation.
+    if (event.toState === 'enter-start') {
+      this._panelAnimationState = 'enter';
+    }
+  }
 }

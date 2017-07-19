@@ -2,14 +2,15 @@ import {inject, TestBed, async, ComponentFixture} from '@angular/core/testing';
 import {NgModule, Component, ViewChild, ViewContainerRef} from '@angular/core';
 import {TemplatePortalDirective, PortalModule} from '../portal/portal-directives';
 import {TemplatePortal, ComponentPortal} from '../portal/portal';
-import {Overlay} from './overlay';
-import {OverlayContainer} from './overlay-container';
-import {OverlayState} from './overlay-state';
-import {OverlayRef} from './overlay-ref';
-import {PositionStrategy} from './position/position-strategy';
-import {OverlayModule} from './overlay-directives';
-import {ViewportRuler} from './position/viewport-ruler';
-import {ScrollStrategy, ScrollDispatcher} from './scroll/index';
+import {
+  OverlayModule,
+  OverlayRef,
+  OverlayState,
+  OverlayContainer,
+  Overlay,
+  PositionStrategy,
+  ScrollStrategy,
+} from './index';
 
 
 describe('Overlay', () => {
@@ -194,8 +195,8 @@ describe('Overlay', () => {
     let attachCompleteSpy = jasmine.createSpy('attachCompleteSpy spy');
     let detachCompleteSpy = jasmine.createSpy('detachCompleteSpy spy');
 
-    overlayRef.attachments().subscribe(null, null, attachCompleteSpy);
-    overlayRef.detachments().subscribe(disposeSpy, null, detachCompleteSpy);
+    overlayRef.attachments().subscribe(undefined, undefined, attachCompleteSpy);
+    overlayRef.detachments().subscribe(disposeSpy, undefined, detachCompleteSpy);
 
     overlayRef.attach(componentPortal);
     overlayRef.dispose();
@@ -207,10 +208,10 @@ describe('Overlay', () => {
 
   it('should complete the attachment observable before the detachment one', () => {
     let overlayRef = overlay.create();
-    let callbackOrder = [];
+    let callbackOrder: string[] = [];
 
-    overlayRef.attachments().subscribe(null, null, () => callbackOrder.push('attach'));
-    overlayRef.detachments().subscribe(null, null, () => callbackOrder.push('detach'));
+    overlayRef.attachments().subscribe(undefined, undefined, () => callbackOrder.push('attach'));
+    overlayRef.detachments().subscribe(undefined, undefined, () => callbackOrder.push('detach'));
 
     overlayRef.attach(componentPortal);
     overlayRef.dispose();
@@ -325,6 +326,20 @@ describe('Overlay', () => {
 
       backdrop.click();
       expect(backdropClickHandler).toHaveBeenCalled();
+    });
+
+    it('should complete the backdrop click stream once the overlay is destroyed', () => {
+      let overlayRef = overlay.create(config);
+
+      overlayRef.attach(componentPortal);
+      viewContainerFixture.detectChanges();
+
+      let completeHandler = jasmine.createSpy('backdrop complete handler');
+
+      overlayRef.backdropClick().subscribe(undefined, undefined, completeHandler);
+      overlayRef.dispose();
+
+      expect(completeHandler).toHaveBeenCalled();
     });
 
     it('should apply the default overlay backdrop class', () => {
@@ -445,7 +460,7 @@ describe('OverlayContainer theming', () => {
   }));
 
   afterEach(() => {
-    overlayContainerElement.parentNode.removeChild(overlayContainerElement);
+    overlayContainerElement.parentNode!.removeChild(overlayContainerElement);
   });
 
   it('should be able to set a theme on the overlay container', () => {
@@ -497,9 +512,9 @@ class OverlayTestModule { }
 class OverlayContainerThemingTestModule { }
 
 class FakePositionStrategy implements PositionStrategy {
-  apply(element: Element): Promise<void> {
+  apply(element: Element): Promise<null> {
     element.classList.add('fake-positioned');
-    return Promise.resolve();
+    return Promise.resolve(null);
   }
 
   dispose() {}

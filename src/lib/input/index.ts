@@ -1,3 +1,11 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import {NgModule} from '@angular/core';
 import {
   MdErrorDirective,
@@ -10,7 +18,6 @@ import {
 } from './input-container';
 import {MdTextareaAutosize} from './autosize';
 import {CommonModule} from '@angular/common';
-import {FormsModule} from '@angular/forms';
 import {PlatformModule} from '../core/platform/index';
 
 
@@ -27,7 +34,6 @@ import {PlatformModule} from '../core/platform/index';
   ],
   imports: [
     CommonModule,
-    FormsModule,
     PlatformModule,
   ],
   exports: [

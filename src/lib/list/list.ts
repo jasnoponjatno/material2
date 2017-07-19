@@ -1,3 +1,11 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import {
   AfterContentInit,
   Component,
@@ -9,7 +17,8 @@ import {
   Optional,
   QueryList,
   Renderer2,
-  ViewEncapsulation
+  ViewEncapsulation,
+  ChangeDetectionStrategy,
 } from '@angular/core';
 import {coerceBooleanProperty, MdLine, MdLineSetter} from '../core';
 
@@ -25,12 +34,11 @@ export class MdListDivider {}
 @Component({
   moduleId: module.id,
   selector: 'md-list, mat-list, md-nav-list, mat-nav-list',
-  host: {
-    'role': 'list'
-  },
+  host: {'role': 'list'},
   template: '<ng-content></ng-content>',
   styleUrls: ['list.css'],
-  encapsulation: ViewEncapsulation.None
+  encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MdList {
   private _disableRipple: boolean = false;
@@ -50,9 +58,7 @@ export class MdList {
  */
 @Directive({
   selector: 'md-list, mat-list',
-  host: {
-    '[class.mat-list]': 'true'
-  }
+  host: {'class': 'mat-list'}
 })
 export class MdListCssMatStyler {}
 
@@ -62,9 +68,7 @@ export class MdListCssMatStyler {}
  */
 @Directive({
   selector: 'md-nav-list, mat-nav-list',
-  host: {
-    '[class.mat-nav-list]': 'true'
-  }
+  host: {'class': 'mat-nav-list'}
 })
 export class MdNavListCssMatStyler {}
 
@@ -74,9 +78,7 @@ export class MdNavListCssMatStyler {}
  */
 @Directive({
   selector: 'md-divider, mat-divider',
-  host: {
-    '[class.mat-divider]': 'true'
-  }
+  host: {'class': 'mat-divider'}
 })
 export class MdDividerCssMatStyler {}
 
@@ -85,10 +87,8 @@ export class MdDividerCssMatStyler {}
  * @docs-private
  */
 @Directive({
-  selector: '[md-list-avatar], [mat-list-avatar]',
-  host: {
-    '[class.mat-list-avatar]': 'true'
-  }
+  selector: '[md-list-avatar], [mat-list-avatar], [mdListAvatar], [matListAvatar]',
+  host: {'class': 'mat-list-avatar'}
 })
 export class MdListAvatarCssMatStyler {}
 
@@ -97,10 +97,8 @@ export class MdListAvatarCssMatStyler {}
  * @docs-private
  */
 @Directive({
-  selector: '[md-list-icon], [mat-list-icon]',
-  host: {
-    '[class.mat-list-icon]': 'true'
-  }
+  selector: '[md-list-icon], [mat-list-icon], [mdListIcon], [matListIcon]',
+  host: {'class': 'mat-list-icon'}
 })
 export class MdListIconCssMatStyler {}
 
@@ -110,9 +108,7 @@ export class MdListIconCssMatStyler {}
  */
 @Directive({
   selector: '[md-subheader], [mat-subheader]',
-  host: {
-    '[class.mat-subheader]': 'true'
-  }
+  host: {'class': 'mat-subheader'}
 })
 export class MdListSubheaderCssMatStyler {}
 
@@ -121,12 +117,13 @@ export class MdListSubheaderCssMatStyler {}
   selector: 'md-list-item, mat-list-item, a[md-list-item], a[mat-list-item]',
   host: {
     'role': 'listitem',
+    'class': 'mat-list-item',
     '(focus)': '_handleFocus()',
     '(blur)': '_handleBlur()',
-    '[class.mat-list-item]': 'true',
   },
   templateUrl: 'list-item.html',
-  encapsulation: ViewEncapsulation.None
+  encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MdListItem implements AfterContentInit {
   private _lineSetter: MdLineSetter;

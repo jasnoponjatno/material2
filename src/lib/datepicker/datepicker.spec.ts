@@ -1,23 +1,22 @@
-import {async, ComponentFixture, TestBed} from '@angular/core/testing';
-import {MdDatepickerModule} from './index';
 import {Component, ViewChild} from '@angular/core';
-import {MdDatepicker} from './datepicker';
-import {MdDatepickerInput} from './datepicker-input';
+import {async, ComponentFixture, TestBed, inject} from '@angular/core/testing';
+import {NoopAnimationsModule} from '@angular/platform-browser/animations';
 import {FormControl, FormsModule, ReactiveFormsModule} from '@angular/forms';
 import {By} from '@angular/platform-browser';
-import {dispatchFakeEvent, dispatchMouseEvent} from '../core/testing/dispatch-events';
+import {MdDatepickerModule} from './index';
+import {MdDatepicker} from './datepicker';
+import {MdDatepickerInput} from './datepicker-input';
 import {MdInputModule} from '../input/index';
-import {NoopAnimationsModule} from '@angular/platform-browser/animations';
 import {MdNativeDateModule} from '../core/datetime/index';
-
-
-// When constructing a Date, the month is zero-based. This can be confusing, since people are
-// used to seeing them one-based. So we create these aliases to make reading the tests easier.
-const JAN = 0, FEB = 1, MAR = 2, APR = 3, MAY = 4, JUN = 5, JUL = 6, AUG = 7, SEP = 8, OCT = 9,
-      NOV = 10, DEC = 11;
-
+import {ESCAPE, OverlayContainer} from '../core';
+import {dispatchFakeEvent, dispatchMouseEvent, dispatchKeyboardEvent} from '@angular/cdk/testing';
+import {DEC, JAN} from '../core/testing/month-constants';
 
 describe('MdDatepicker', () => {
+  afterEach(inject([OverlayContainer], (container: OverlayContainer) => {
+    container.getContainerElement().parentNode!.removeChild(container.getContainerElement());
+  }));
+
   describe('with MdNativeDateModule', () => {
     beforeEach(async(() => {
       TestBed.configureTestingModule({
@@ -35,6 +34,7 @@ describe('MdDatepicker', () => {
           DatepickerWithMinAndMaxValidation,
           DatepickerWithNgModel,
           DatepickerWithStartAt,
+          DatepickerWithStartView,
           DatepickerWithToggle,
           InputContainerDatepicker,
           MultiInputDatepicker,
@@ -62,16 +62,16 @@ describe('MdDatepicker', () => {
         fixture.detectChanges();
       }));
 
-      it('open non-touch should open popup', async(() => {
+      it('open non-touch should open popup', () => {
         expect(document.querySelector('.cdk-overlay-pane')).toBeNull();
 
         testComponent.datepicker.open();
         fixture.detectChanges();
 
         expect(document.querySelector('.cdk-overlay-pane')).not.toBeNull();
-      }));
+      });
 
-      it('open touch should open dialog', async(() => {
+      it('open touch should open dialog', () => {
         testComponent.touch = true;
         fixture.detectChanges();
 
@@ -81,25 +81,69 @@ describe('MdDatepicker', () => {
         fixture.detectChanges();
 
         expect(document.querySelector('md-dialog-container')).not.toBeNull();
-      }));
+      });
 
-      it('close should close popup', async(() => {
+      it('open in disabled mode should not open the calendar', () => {
+        testComponent.disabled = true;
+        fixture.detectChanges();
+
+        expect(document.querySelector('.cdk-overlay-pane')).toBeNull();
+        expect(document.querySelector('md-dialog-container')).toBeNull();
+
         testComponent.datepicker.open();
         fixture.detectChanges();
 
-        let popup = document.querySelector('.cdk-overlay-pane');
+        expect(document.querySelector('.cdk-overlay-pane')).toBeNull();
+        expect(document.querySelector('md-dialog-container')).toBeNull();
+      });
+
+      it('disabled datepicker input should open the calendar if datepicker is enabled', () => {
+        testComponent.datepicker.disabled = false;
+        testComponent.datepickerInput.disabled = true;
+        fixture.detectChanges();
+
+        expect(document.querySelector('.cdk-overlay-pane')).toBeNull();
+
+        testComponent.datepicker.open();
+        fixture.detectChanges();
+
+        expect(document.querySelector('.cdk-overlay-pane')).not.toBeNull();
+      });
+
+      it('close should close popup', () => {
+        testComponent.datepicker.open();
+        fixture.detectChanges();
+
+        let popup = document.querySelector('.cdk-overlay-pane')!;
         expect(popup).not.toBeNull();
-        expect(parseInt(getComputedStyle(popup).height)).not.toBe(0);
+        expect(parseInt(getComputedStyle(popup).height as string)).not.toBe(0);
 
         testComponent.datepicker.close();
         fixture.detectChanges();
 
         fixture.whenStable().then(() => {
-          expect(parseInt(getComputedStyle(popup).height)).toBe(0);
+          expect(parseInt(getComputedStyle(popup).height as string)).toBe(0);
         });
-      }));
+      });
 
-      it('close should close dialog', async(() => {
+      it('should close the popup when pressing ESCAPE', () => {
+        testComponent.datepicker.open();
+        fixture.detectChanges();
+
+        let content = document.querySelector('.cdk-overlay-pane md-datepicker-content')!;
+        expect(content).toBeTruthy('Expected datepicker to be open.');
+
+        let keyboadEvent = dispatchKeyboardEvent(content, 'keydown', ESCAPE);
+        fixture.detectChanges();
+
+        content = document.querySelector('.cdk-overlay-pane md-datepicker-content')!;
+
+        expect(content).toBeFalsy('Expected datepicker to be closed.');
+        expect(keyboadEvent.defaultPrevented)
+            .toBe(true, 'Expected default ESCAPE action to be prevented.');
+      });
+
+      it('close should close dialog', () => {
         testComponent.touch = true;
         fixture.detectChanges();
 
@@ -114,9 +158,9 @@ describe('MdDatepicker', () => {
         fixture.whenStable().then(() => {
           expect(document.querySelector('md-dialog-container')).toBeNull();
         });
-      }));
+      });
 
-      it('setting selected should update input and close calendar', async(() => {
+      it('setting selected should update input and close calendar', () => {
         testComponent.touch = true;
         fixture.detectChanges();
 
@@ -134,7 +178,7 @@ describe('MdDatepicker', () => {
           expect(document.querySelector('md-dialog-container')).toBeNull();
           expect(testComponent.datepickerInput.value).toEqual(new Date(2020, JAN, 2));
         });
-      }));
+      });
 
       it('startAt should fallback to input value', () => {
         expect(testComponent.datepicker.startAt).toEqual(new Date(2020, JAN, 1));
@@ -193,6 +237,35 @@ describe('MdDatepicker', () => {
 
       it('explicit startAt should override input value', () => {
         expect(testComponent.datepicker.startAt).toEqual(new Date(2010, JAN, 1));
+      });
+    });
+
+    describe('datepicker with startView', () => {
+      let fixture: ComponentFixture<DatepickerWithStartView>;
+      let testComponent: DatepickerWithStartView;
+
+      beforeEach(async(() => {
+        fixture = TestBed.createComponent(DatepickerWithStartView);
+        fixture.detectChanges();
+
+        testComponent = fixture.componentInstance;
+      }));
+
+      afterEach(async(() => {
+        testComponent.datepicker.close();
+        fixture.detectChanges();
+      }));
+
+      it('should start at the specified view', () => {
+        testComponent.datepicker.open();
+        fixture.detectChanges();
+
+        const firstCalendarCell = document.querySelector('.mat-calendar-body-cell')!;
+
+        // When the calendar is in year view, the first cell should be for a month rather than
+        // for a date.
+        expect(firstCalendarCell.textContent)
+            .toBe('JAN', 'Expected the calendar to be in year-view');
       });
     });
 
@@ -384,9 +457,46 @@ describe('MdDatepicker', () => {
         expect(document.querySelector('md-dialog-container')).not.toBeNull();
       });
 
+      it('should not open calendar when toggle clicked if datepicker is disabled', () => {
+        testComponent.datepicker.disabled = true;
+        fixture.detectChanges();
+
+        expect(document.querySelector('md-dialog-container')).toBeNull();
+
+        let toggle = fixture.debugElement.query(By.css('button'));
+        dispatchMouseEvent(toggle.nativeElement, 'click');
+        fixture.detectChanges();
+
+        expect(document.querySelector('md-dialog-container')).toBeNull();
+      });
+
       it('should set the `button` type on the trigger to prevent form submissions', () => {
         let toggle = fixture.debugElement.query(By.css('button')).nativeElement;
         expect(toggle.getAttribute('type')).toBe('button');
+      });
+
+      it('should restore focus to the toggle after the calendar is closed', () => {
+        let toggle = fixture.debugElement.query(By.css('button')).nativeElement;
+
+        fixture.componentInstance.touchUI = false;
+        fixture.detectChanges();
+
+        toggle.focus();
+        expect(document.activeElement).toBe(toggle, 'Expected toggle to be focused.');
+
+        fixture.componentInstance.datepicker.open();
+        fixture.detectChanges();
+
+        let pane = document.querySelector('.cdk-overlay-pane')!;
+
+        expect(pane).toBeTruthy('Expected calendar to be open.');
+        expect(pane.contains(document.activeElement))
+            .toBe(true, 'Expected focus to be inside the calendar.');
+
+        fixture.componentInstance.datepicker.close();
+        fixture.detectChanges();
+
+        expect(document.activeElement).toBe(toggle, 'Expected focus to be restored to toggle.');
       });
     });
 
@@ -593,7 +703,7 @@ describe('MdDatepicker', () => {
       testComponent.datepicker.open();
       fixture.detectChanges();
 
-      const overlayRect = document.querySelector('.cdk-overlay-pane').getBoundingClientRect();
+      const overlayRect = document.querySelector('.cdk-overlay-pane')!.getBoundingClientRect();
       const inputRect = input.getBoundingClientRect();
 
       expect(Math.floor(overlayRect.top))
@@ -607,7 +717,7 @@ describe('MdDatepicker', () => {
       testComponent.datepicker.open();
       fixture.detectChanges();
 
-      const overlayRect = document.querySelector('.cdk-overlay-pane').getBoundingClientRect();
+      const overlayRect = document.querySelector('.cdk-overlay-pane')!.getBoundingClientRect();
       const inputRect = input.getBoundingClientRect();
 
       expect(Math.floor(overlayRect.bottom))
@@ -621,7 +731,7 @@ describe('MdDatepicker', () => {
       testComponent.datepicker.open();
       fixture.detectChanges();
 
-      const overlayRect = document.querySelector('.cdk-overlay-pane').getBoundingClientRect();
+      const overlayRect = document.querySelector('.cdk-overlay-pane')!.getBoundingClientRect();
       const inputRect = input.getBoundingClientRect();
 
       expect(Math.floor(overlayRect.top))
@@ -635,7 +745,7 @@ describe('MdDatepicker', () => {
       testComponent.datepicker.open();
       fixture.detectChanges();
 
-      const overlayRect = document.querySelector('.cdk-overlay-pane').getBoundingClientRect();
+      const overlayRect = document.querySelector('.cdk-overlay-pane')!.getBoundingClientRect();
       const inputRect = input.getBoundingClientRect();
 
       expect(Math.floor(overlayRect.bottom))
@@ -651,11 +761,12 @@ describe('MdDatepicker', () => {
 @Component({
   template: `
     <input [mdDatepicker]="d" [value]="date">
-    <md-datepicker #d [touchUi]="touch"></md-datepicker>
+    <md-datepicker #d [touchUi]="touch" [disabled]="disabled"></md-datepicker>
   `,
 })
 class StandardDatepicker {
   touch = false;
+  disabled = false;
   date = new Date(2020, JAN, 1);
   @ViewChild('d') datepicker: MdDatepicker<Date>;
   @ViewChild(MdDatepickerInput) datepickerInput: MdDatepickerInput<Date>;
@@ -692,10 +803,22 @@ class DatepickerWithStartAt {
 
 
 @Component({
+  template: `
+    <input [mdDatepicker]="d" [value]="date">
+    <md-datepicker #d startView="year"></md-datepicker>
+  `,
+})
+class DatepickerWithStartView {
+  date = new Date(2020, JAN, 1);
+  @ViewChild('d') datepicker: MdDatepicker<Date>;
+}
+
+
+@Component({
   template: `<input [(ngModel)]="selected" [mdDatepicker]="d"><md-datepicker #d></md-datepicker>`,
 })
 class DatepickerWithNgModel {
-  selected: Date = null;
+  selected: Date | null = null;
   @ViewChild('d') datepicker: MdDatepicker<Date>;
   @ViewChild(MdDatepickerInput) datepickerInput: MdDatepickerInput<Date>;
 }
@@ -718,11 +841,12 @@ class DatepickerWithFormControl {
   template: `
     <input [mdDatepicker]="d">
     <button [mdDatepickerToggle]="d"></button>
-    <md-datepicker #d [touchUi]="true"></md-datepicker>
+    <md-datepicker #d [touchUi]="touchUI"></md-datepicker>
   `,
 })
 class DatepickerWithToggle {
   @ViewChild('d') datepicker: MdDatepicker<Date>;
+  touchUI = true;
 }
 
 

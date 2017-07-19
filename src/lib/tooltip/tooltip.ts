@@ -1,3 +1,11 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import {
   Component,
   Directive,
@@ -9,6 +17,10 @@ import {
   OnDestroy,
   Renderer2,
   ChangeDetectorRef,
+  ChangeDetectionStrategy,
+  ViewEncapsulation,
+  InjectionToken,
+  Inject,
 } from '@angular/core';
 import {
   style,
@@ -25,14 +37,19 @@ import {
   ComponentPortal,
   OverlayConnectionPosition,
   OriginConnectionPosition,
+  RepositionScrollStrategy,
+  // This import is only used to define a generic type. The current TypeScript version incorrectly
+  // considers such imports as unused (https://github.com/Microsoft/TypeScript/issues/14953)
+  // tslint:disable-next-line:no-unused-variable
+  ScrollStrategy,
 } from '../core';
 import {Observable} from 'rxjs/Observable';
 import {Subject} from 'rxjs/Subject';
-import {Dir} from '../core/rtl/dir';
+import {Directionality} from '../core/bidi/index';
 import {Platform} from '../core/platform/index';
-import 'rxjs/add/operator/first';
+import {first} from '../core/rxjs/index';
 import {ScrollDispatcher} from '../core/overlay/scroll/scroll-dispatcher';
-import {coerceBooleanProperty} from '../core/coercion/boolean-property';
+import {coerceBooleanProperty} from '@angular/cdk';
 
 export type TooltipPosition = 'left' | 'right' | 'above' | 'below' | 'before' | 'after';
 
@@ -42,10 +59,30 @@ export const TOUCHEND_HIDE_DELAY = 1500;
 /** Time in ms to throttle repositioning after scroll events. */
 export const SCROLL_THROTTLE_MS = 20;
 
-/** Throws an error if the user supplied an invalid tooltip position. */
-export function throwMdTooltipInvalidPositionError(position: string) {
-  throw new Error(`Tooltip position "${position}" is invalid.`);
+/** CSS class that will be attached to the overlay panel. */
+export const TOOLTIP_PANEL_CLASS = 'mat-tooltip-panel';
+
+/** Creates an error to be thrown if the user supplied an invalid tooltip position. */
+export function getMdTooltipInvalidPositionError(position: string) {
+  return Error(`Tooltip position "${position}" is invalid.`);
 }
+
+/** Injection token that determines the scroll handling while a tooltip is visible. */
+export const MD_TOOLTIP_SCROLL_STRATEGY =
+    new InjectionToken<() => ScrollStrategy>('md-tooltip-scroll-strategy');
+
+/** @docs-private */
+export function MD_TOOLTIP_SCROLL_STRATEGY_PROVIDER_FACTORY(overlay: Overlay) {
+  return () => overlay.scrollStrategies.reposition({ scrollThrottle: SCROLL_THROTTLE_MS });
+}
+
+/** @docs-private */
+export const MD_TOOLTIP_SCROLL_STRATEGY_PROVIDER = {
+  provide: MD_TOOLTIP_SCROLL_STRATEGY,
+  deps: [Overlay],
+  useFactory: MD_TOOLTIP_SCROLL_STRATEGY_PROVIDER_FACTORY
+};
+
 
 /**
  * Directive that attaches a material design tooltip to the host element. Animates the showing and
@@ -62,11 +99,12 @@ export function throwMdTooltipInvalidPositionError(position: string) {
   exportAs: 'mdTooltip',
 })
 export class MdTooltip implements OnDestroy {
-  _overlayRef: OverlayRef;
-  _tooltipInstance: TooltipComponent;
+  _overlayRef: OverlayRef | null;
+  _tooltipInstance: TooltipComponent | null;
 
   private _position: TooltipPosition = 'below';
   private _disabled: boolean = false;
+  private _tooltipClass: string|string[]|Set<string>|{[key: string]: any};
 
   /** Allows the user to define the position of the tooltip relative to the parent element */
   @Input('mdTooltipPosition')
@@ -112,8 +150,16 @@ export class MdTooltip implements OnDestroy {
   @Input('mdTooltip') get message() { return this._message; }
   set message(value: string) {
     this._message = value;
+    this._setTooltipMessage(this._message);
+  }
+
+  /** Classes to be passed to the tooltip. Supports the same syntax as `ngClass`. */
+  @Input('mdTooltipClass')
+  get tooltipClass() { return this._tooltipClass; }
+  set tooltipClass(value: string|string[]|Set<string>|{[key: string]: any}) {
+    this._tooltipClass = value;
     if (this._tooltipInstance) {
-      this._setTooltipMessage(this._message);
+      this._setTooltipClass(this._tooltipClass);
     }
   }
 
@@ -147,6 +193,14 @@ export class MdTooltip implements OnDestroy {
   get _matShowDelay() { return this.showDelay; }
   set _matShowDelay(v) { this.showDelay = v; }
 
+  // Properties with `mat-` prefix for nonconflict mode.
+  @Input('matTooltipClass')
+  get _matClass() { return this.tooltipClass; }
+  set _matClass(v) { this.tooltipClass = v; }
+
+  private _enterListener: Function;
+  private _leaveListener: Function;
+
   constructor(
     private _overlay: Overlay,
     private _elementRef: ElementRef,
@@ -155,13 +209,16 @@ export class MdTooltip implements OnDestroy {
     private _ngZone: NgZone,
     private _renderer: Renderer2,
     private _platform: Platform,
-    @Optional() private _dir: Dir) {
+    @Inject(MD_TOOLTIP_SCROLL_STRATEGY) private _scrollStrategy,
+    @Optional() private _dir: Directionality) {
 
     // The mouse events shouldn't be bound on iOS devices, because
     // they can prevent the first tap from firing its click event.
     if (!_platform.IOS) {
-      _renderer.listen(_elementRef.nativeElement, 'mouseenter', () => this.show());
-      _renderer.listen(_elementRef.nativeElement, 'mouseleave', () => this.hide());
+      this._enterListener =
+        _renderer.listen(_elementRef.nativeElement, 'mouseenter', () => this.show());
+      this._leaveListener =
+        _renderer.listen(_elementRef.nativeElement, 'mouseleave', () => this.hide());
     }
   }
 
@@ -171,6 +228,11 @@ export class MdTooltip implements OnDestroy {
   ngOnDestroy() {
     if (this._tooltipInstance) {
       this._disposeTooltip();
+    }
+    // Clean up the event listeners set in the constructor
+    if (!this._platform.IOS) {
+      this._enterListener();
+      this._leaveListener();
     }
   }
 
@@ -182,8 +244,9 @@ export class MdTooltip implements OnDestroy {
       this._createTooltip();
     }
 
+    this._setTooltipClass(this._tooltipClass);
     this._setTooltipMessage(this._message);
-    this._tooltipInstance.show(this._position, delay);
+    this._tooltipInstance!.show(this._position, delay);
   }
 
   /** Hides the tooltip after the delay in ms, defaults to tooltip-delay-hide or 0ms if no input */
@@ -205,12 +268,13 @@ export class MdTooltip implements OnDestroy {
 
   /** Create the tooltip to display */
   private _createTooltip(): void {
-    this._createOverlay();
+    let overlayRef = this._createOverlay();
     let portal = new ComponentPortal(TooltipComponent, this._viewContainerRef);
-    this._tooltipInstance = this._overlayRef.attach(portal).instance;
+
+    this._tooltipInstance = overlayRef.attach(portal).instance;
 
     // Dispose the overlay when finished the shown tooltip.
-    this._tooltipInstance.afterHidden().subscribe(() => {
+    this._tooltipInstance!.afterHidden().subscribe(() => {
       // Check first if the tooltip has already been removed through this components destroy.
       if (this._tooltipInstance) {
         this._disposeTooltip();
@@ -219,7 +283,7 @@ export class MdTooltip implements OnDestroy {
   }
 
   /** Create the overlay config and position strategy */
-  private _createOverlay(): void {
+  private _createOverlay(): OverlayRef {
     let origin = this._getOrigin();
     let position = this._getOverlayPosition();
 
@@ -239,17 +303,21 @@ export class MdTooltip implements OnDestroy {
 
     config.direction = this._dir ? this._dir.value : 'ltr';
     config.positionStrategy = strategy;
-    config.scrollStrategy = this._overlay.scrollStrategies.reposition({
-      scrollThrottle: SCROLL_THROTTLE_MS
-    });
+    config.panelClass = TOOLTIP_PANEL_CLASS;
+    config.scrollStrategy = this._scrollStrategy();
 
     this._overlayRef = this._overlay.create(config);
+
+    return this._overlayRef;
   }
 
   /** Disposes the current tooltip and the overlay it is attached to */
   private _disposeTooltip(): void {
-    this._overlayRef.dispose();
-    this._overlayRef = null;
+    if (this._overlayRef) {
+      this._overlayRef.dispose();
+      this._overlayRef = null;
+    }
+
     this._tooltipInstance = null;
   }
 
@@ -272,7 +340,7 @@ export class MdTooltip implements OnDestroy {
       return {originX: 'end', originY: 'center'};
     }
 
-    throwMdTooltipInvalidPositionError(this.position);
+    throw getMdTooltipInvalidPositionError(this.position);
   }
 
   /** Returns the overlay position based on the user's preference */
@@ -298,21 +366,31 @@ export class MdTooltip implements OnDestroy {
       return {overlayX: 'start', overlayY: 'center'};
     }
 
-    throwMdTooltipInvalidPositionError(this.position);
+    throw getMdTooltipInvalidPositionError(this.position);
   }
 
   /** Updates the tooltip message and repositions the overlay according to the new message length */
   private _setTooltipMessage(message: string) {
     // Must wait for the message to be painted to the tooltip so that the overlay can properly
     // calculate the correct positioning based on the size of the text.
-    this._tooltipInstance.message = message;
-    this._tooltipInstance._markForCheck();
+    if (this._tooltipInstance) {
+      this._tooltipInstance.message = message;
+      this._tooltipInstance._markForCheck();
 
-    this._ngZone.onMicrotaskEmpty.first().subscribe(() => {
-      if (this._tooltipInstance) {
-        this._overlayRef.updatePosition();
-      }
-    });
+      first.call(this._ngZone.onMicrotaskEmpty).subscribe(() => {
+        if (this._tooltipInstance) {
+          this._overlayRef!.updatePosition();
+        }
+      });
+    }
+  }
+
+  /** Updates the tooltip class */
+  private _setTooltipClass(tooltipClass: string|string[]|Set<string>|{[key: string]: any}) {
+    if (this._tooltipInstance) {
+      this._tooltipInstance.tooltipClass = tooltipClass;
+      this._tooltipInstance._markForCheck();
+    }
   }
 }
 
@@ -327,6 +405,8 @@ export type TooltipVisibility = 'initial' | 'visible' | 'hidden';
   selector: 'md-tooltip-component, mat-tooltip-component',
   templateUrl: 'tooltip.html',
   styleUrls: ['tooltip.css'],
+  encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [
     trigger('state', [
       state('void', style({transform: 'scale(0)'})),
@@ -348,6 +428,9 @@ export class TooltipComponent {
   /** Message to display in the tooltip */
   message: string;
 
+  /** Classes to be added to the tooltip. Supports the same syntax as `ngClass`. */
+  tooltipClass: string|string[]|Set<string>|{[key: string]: any};
+
   /** The timeout ID of any current timer set to show the tooltip */
   _showTimeoutId: number;
 
@@ -366,7 +449,8 @@ export class TooltipComponent {
   /** Subject for notifying that the tooltip has been hidden from the view */
   private _onHide: Subject<any> = new Subject();
 
-  constructor(@Optional() private _dir: Dir, private _changeDetectorRef: ChangeDetectorRef) {}
+  constructor(@Optional() private _dir: Directionality,
+              private _changeDetectorRef: ChangeDetectorRef) {}
 
   /**
    * Shows the tooltip with an animation originating from the provided origin
@@ -441,7 +525,7 @@ export class TooltipComponent {
       case 'right':  this._transformOrigin = 'left'; break;
       case 'above':  this._transformOrigin = 'bottom'; break;
       case 'below':  this._transformOrigin = 'top'; break;
-      default: throwMdTooltipInvalidPositionError(value);
+      default: throw getMdTooltipInvalidPositionError(value);
     }
   }
 

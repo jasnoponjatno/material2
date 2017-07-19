@@ -7,7 +7,7 @@
   $background: map-get($theme, background);
   $foreground: map-get($theme, foreground);
 
-  .mat-menu-content {
+  .mat-menu-panel {
     background: mat-color($background, 'card');
   }
 
@@ -34,7 +34,7 @@
   .mat-menu-item {
     font: {
       family: mat-font-family($config);
-      size: mat-font-size($config, subheading);
+      size: mat-font-size($config, subheading-2);
     }
   }
 }

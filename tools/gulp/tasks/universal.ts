@@ -1,11 +1,16 @@
 import {task} from 'gulp';
-import {DIST_RELEASES, DIST_ROOT, SOURCE_ROOT} from '../build-config';
-import {ngcBuildTask, tsBuildTask, copyTask, sequenceTask, execTask} from '../util/task_helpers';
+import {ngcBuildTask, tsBuildTask, copyTask, execTask} from '../util/task_helpers';
 import {join} from 'path';
 import {copySync} from 'fs-extra';
+import {buildConfig, sequenceTask} from 'material2-build-tools';
 
-const appDir = join(SOURCE_ROOT, 'universal-app');
-const outDir = join(DIST_ROOT, 'packages', 'universal-app');
+const {outputDir, packagesDir} = buildConfig;
+
+/** Path to the directory where all releases are created. */
+const releasesDir = join(outputDir, 'releases');
+
+const appDir = join(packagesDir, 'universal-app');
+const outDir = join(outputDir, 'packages', 'universal-app');
 
 // Paths to the different tsconfig files of the Universal app.
 // Building the sources in the output directory is part of the workaround for
@@ -20,7 +25,10 @@ const prerenderOutFile = join(outDir, 'prerender.js');
 task('universal:test-prerender', ['universal:build'], execTask(
   // Runs node with the tsconfig-paths module to alias the @angular/material dependency.
   'node', ['-r', 'tsconfig-paths/register', prerenderOutFile], {
-    env: {TS_NODE_PROJECT: tsconfigPrerenderPath}
+    env: {TS_NODE_PROJECT: tsconfigPrerenderPath},
+    // Errors in lifecycle hooks will write to STDERR, but won't exit the process with an
+    // error code, however we still want to catch those cases in the CI.
+    failOnStderr: true
   }
 ));
 
@@ -44,6 +52,6 @@ task('universal:build-prerender-ts', tsBuildTask(tsconfigPrerenderPath));
 // As a workaround for https://github.com/angular/angular/issues/12249, we need to
 // copy the Material and CDK ESM output inside of the universal-app output.
 task('universal:copy-release', () => {
-  copySync(join(DIST_RELEASES, 'material'), join(outDir, 'material'));
-  copySync(join(DIST_RELEASES, 'cdk'), join(outDir, 'cdk'));
+  copySync(join(releasesDir, 'material'), join(outDir, 'material'));
+  copySync(join(releasesDir, 'cdk'), join(outDir, 'cdk'));
 });

@@ -1,16 +1,21 @@
-import {task, watch} from 'gulp';
+import {task} from 'gulp';
 import {join} from 'path';
-import {SOURCE_ROOT, DIST_E2EAPP, PROJECT_ROOT, DIST_RELEASES} from '../build-config';
-import {ngcBuildTask, copyTask, execNodeTask, sequenceTask, serverTask} from '../util/task_helpers';
+import {ngcBuildTask, copyTask, execNodeTask, serverTask} from '../util/task_helpers';
 import {copySync} from 'fs-extra';
+import {buildConfig, sequenceTask, watchFiles} from 'material2-build-tools';
 
 // There are no type definitions available for these imports.
 const gulpConnect = require('gulp-connect');
 
-const appDir = join(SOURCE_ROOT, 'e2e-app');
-const outDir = DIST_E2EAPP;
+const {outputDir, packagesDir, projectDir} = buildConfig;
 
-const PROTRACTOR_CONFIG_PATH = join(PROJECT_ROOT, 'test/protractor.conf.js');
+/** Path to the directory where all releases are created. */
+const releasesDir = join(outputDir, 'releases');
+
+const appDir = join(packagesDir, 'e2e-app');
+const outDir = join(outputDir, 'packages', 'e2e-app');
+
+const PROTRACTOR_CONFIG_PATH = join(projectDir, 'test/protractor.conf.js');
 const tsconfigPath = join(outDir, 'tsconfig-build.json');
 
 /** Glob that matches all files that need to be copied to the output folder. */
@@ -29,7 +34,7 @@ task('e2e', sequenceTask(
 /** Task that builds the e2e-app in AOT mode. */
 task('e2e-app:build', sequenceTask(
   'clean',
-  ['material:build-release', 'cdk:build-release'],
+  ['material:build-release', 'cdk:build-release', 'material-examples:build-release'],
   ['e2e-app:copy-release', 'e2e-app:copy-assets'],
   'e2e-app:build-ts'
 ));
@@ -41,8 +46,8 @@ task('e2e-app:copy-assets', copyTask(assetsGlob, outDir));
 task('e2e-app:build-ts', ngcBuildTask(tsconfigPath));
 
 task(':watch:e2eapp', () => {
-  watch(join(appDir, '**/*.ts'), ['e2e-app:build']);
-  watch(join(appDir, '**/*.html'), ['e2e-app:copy-assets']);
+  watchFiles(join(appDir, '**/*.ts'), ['e2e-app:build'], false);
+  watchFiles(join(appDir, '**/*.html'), ['e2e-app:copy-assets'], false);
 });
 
 /** Ensures that protractor and webdriver are set up to run. */
@@ -69,7 +74,8 @@ task('serve:e2eapp:watch', ['serve:e2eapp', 'material:watch', ':watch:e2eapp']);
 // As a workaround for https://github.com/angular/angular/issues/12249, we need to
 // copy the Material and CDK ESM output inside of the demo-app output.
 task('e2e-app:copy-release', () => {
-  copySync(join(DIST_RELEASES, 'material'), join(outDir, 'material'));
-  copySync(join(DIST_RELEASES, 'cdk'), join(outDir, 'cdk'));
+  copySync(join(releasesDir, 'material'), join(outDir, 'material'));
+  copySync(join(releasesDir, 'cdk'), join(outDir, 'cdk'));
+  copySync(join(releasesDir, 'material-examples'), join(outDir, 'material-examples'));
 });
 

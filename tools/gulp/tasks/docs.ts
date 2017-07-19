@@ -1,7 +1,7 @@
 import {task, src, dest} from 'gulp';
 import {Dgeni} from 'dgeni';
 import * as path from 'path';
-import {DIST_ROOT, HTML_MINIFIER_OPTIONS, SOURCE_ROOT} from '../build-config';
+import {buildConfig} from 'material2-build-tools';
 
 // There are no type definitions available for these imports.
 const markdown = require('gulp-markdown');
@@ -13,7 +13,9 @@ const htmlmin = require('gulp-htmlmin');
 const hljs = require('highlight.js');
 const dom  = require('gulp-dom');
 
-const DIST_DOCS = path.join(DIST_ROOT, 'docs');
+const {outputDir, packagesDir} = buildConfig;
+
+const DIST_DOCS = path.join(outputDir, 'docs');
 
 // Our docs contain comments of the form `<!-- example(...) -->` which serve as placeholders where
 // example code should be inserted. We replace these comments with divs that have a
@@ -48,6 +50,14 @@ const MARKDOWN_TAGS_TO_CLASS_ALIAS = [
   'code',
 ];
 
+// Options for the html-minifier that minifies the generated HTML files.
+const htmlMinifierOptions = {
+  collapseWhitespace: true,
+  removeComments: true,
+  caseSensitive: true,
+  removeAttributeQuotes: false
+};
+
 /** Generate all docs content. */
 task('docs', [
   'markdown-docs',
@@ -59,7 +69,7 @@ task('docs', [
 
 /** Generates html files from the markdown overviews and guides. */
 task('markdown-docs', () => {
-  return src(['src/lib/**/*.md', 'guides/*.md'])
+  return src(['src/lib/**/*.md', 'src/cdk/**/*.md', 'guides/*.md'])
       .pipe(markdown({
         // Add syntax highlight using highlight.js
         highlight: (code: string, language: string) => {
@@ -105,13 +115,13 @@ task('api-docs', () => {
 /** Generates minified html api docs. */
 task('minified-api-docs', ['api-docs'], () => {
   return src('dist/docs/api/*.html')
-    .pipe(htmlmin(HTML_MINIFIER_OPTIONS))
+    .pipe(htmlmin(htmlMinifierOptions))
     .pipe(dest('dist/docs/api/'));
 });
 
 /** Copies example sources to be used as plunker assets for the docs site. */
 task('plunker-example-assets', () => {
-  src(path.join(SOURCE_ROOT, 'material-examples', '**/*'))
+  src(path.join(packagesDir, 'material-examples', '**/*'))
       .pipe(dest(path.join(DIST_DOCS, 'plunker', 'examples')));
 });
 
@@ -120,12 +130,12 @@ function transformMarkdownFiles(buffer: Buffer, file: any): string {
   let content = buffer.toString('utf-8');
 
   // Replace <!-- example(..) --> comments with HTML elements.
-  content = content.replace(EXAMPLE_PATTERN, (match: string, name: string) =>
+  content = content.replace(EXAMPLE_PATTERN, (_match: string, name: string) =>
     `<div material-docs-example="${name}"></div>`
   );
 
   // Replace the URL in anchor elements inside of compiled markdown files.
-  content = content.replace(LINK_PATTERN, (match: string, head: string, link: string) =>
+  content = content.replace(LINK_PATTERN, (_match: string, head: string, link: string) =>
     // The head is the first match of the RegExp and is necessary to ensure that the RegExp matches
     // an anchor element. The head will be then used to re-create the existing anchor element.
     // If the head is not prepended to the replaced value, then the first match will be lost.

@@ -1,20 +1,22 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import {OverlayRef} from '../core';
 import {Observable} from 'rxjs/Observable';
 import {Subject} from 'rxjs/Subject';
 import {MdSnackBarContainer} from './snack-bar-container';
 
-// TODO(josephperrott): Implement onAction observable.
-
 /**
  * Reference to a snack bar dispatched from the snack bar service.
  */
 export class MdSnackBarRef<T> {
-  private _instance: T;
-
   /** The instance of the component making up the content of the snack bar. */
-  get instance(): T {
-    return this._instance;
-  }
+  instance: T;
 
   /**
    * The instance of the component making up the content of the snack bar.
@@ -31,11 +33,14 @@ export class MdSnackBarRef<T> {
   /** Subject for notifying the user that the snack bar action was called. */
   private _onAction: Subject<any> = new Subject();
 
-  constructor(instance: T,
-              containerInstance: MdSnackBarContainer,
+  /**
+   * Timeout ID for the duration setTimeout call. Used to clear the timeout if the snackbar is
+   * dismissed before the duration passes.
+   */
+  private _durationTimeoutId: number;
+
+  constructor(containerInstance: MdSnackBarContainer,
               private _overlayRef: OverlayRef) {
-    // Sets the readonly instance of the snack bar content component.
-    this._instance = instance;
     this.containerInstance = containerInstance;
     // Dismiss snackbar on action.
     this.onAction().subscribe(() => this.dismiss());
@@ -47,6 +52,12 @@ export class MdSnackBarRef<T> {
     if (!this._afterClosed.closed) {
       this.containerInstance.exit();
     }
+    clearTimeout(this._durationTimeoutId);
+  }
+
+  /** Dismisses the snack bar after some duration */
+  _dismissAfter(duration: number): void {
+    this._durationTimeoutId = setTimeout(() => this.dismiss(), duration);
   }
 
   /** Marks the snackbar action clicked. */

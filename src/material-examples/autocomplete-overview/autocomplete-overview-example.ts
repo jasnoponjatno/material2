@@ -4,6 +4,9 @@ import {FormControl} from '@angular/forms';
 import 'rxjs/add/operator/startWith';
 import 'rxjs/add/operator/map';
 
+/**
+ * @title Basic autocomplete
+ */
 @Component({
   selector: 'autocomplete-overview-example',
   templateUrl: 'autocomplete-overview-example.html',
@@ -73,7 +76,7 @@ export class AutocompleteOverviewExample {
   }
 
   filterStates(val: string) {
-    return val ? this.states.filter(s => new RegExp(`^${val}`, 'gi').test(s))
+    return val ? this.states.filter(s => s.toLowerCase().indexOf(val.toLowerCase()) === 0)
                : this.states;
   }
 

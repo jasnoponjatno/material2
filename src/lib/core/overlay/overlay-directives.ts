@@ -1,5 +1,12 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import {
-    NgModule,
     Directive,
     EventEmitter,
     TemplateRef,
@@ -12,28 +19,30 @@ import {
     Renderer2,
     OnChanges,
     SimpleChanges,
+    InjectionToken,
+    Inject,
 } from '@angular/core';
-import {Overlay, OVERLAY_PROVIDERS} from './overlay';
+import {Overlay} from './overlay';
 import {OverlayRef} from './overlay-ref';
 import {TemplatePortal} from '../portal/portal';
 import {OverlayState} from './overlay-state';
 import {
     ConnectionPositionPair,
+    // This import is only used to define a generic type. The current TypeScript version incorrectly
+    // considers such imports as unused (https://github.com/Microsoft/TypeScript/issues/14953)
+    // tslint:disable-next-line:no-unused-variable
     ConnectedOverlayPositionChange
 } from './position/connected-position';
-import {PortalModule} from '../portal/portal-directives';
 import {ConnectedPositionStrategy} from './position/connected-position-strategy';
-import {Dir, LayoutDirection} from '../rtl/dir';
-import {Scrollable} from './scroll/scrollable';
-import {ScrollStrategy} from './scroll/scroll-strategy';
-import {coerceBooleanProperty} from '../coercion/boolean-property';
+import {Directionality, Direction} from '../bidi/index';
+import {coerceBooleanProperty} from '@angular/cdk';
+import {ScrollStrategy, RepositionScrollStrategy} from './scroll/index';
 import {ESCAPE} from '../keyboard/keycodes';
 import {Subscription} from 'rxjs/Subscription';
-import {ScrollDispatchModule} from './scroll/index';
 
 
 /** Default set of positions for the overlay. Follows the behavior of a dropdown. */
-let defaultPositionList = [
+const defaultPositionList = [
   new ConnectionPositionPair(
       {originX: 'start', originY: 'bottom'},
       {overlayX: 'start', overlayY: 'top'}),
@@ -41,6 +50,23 @@ let defaultPositionList = [
       {originX: 'start', originY: 'top'},
       {overlayX: 'start', overlayY: 'bottom'}),
 ];
+
+/** Injection token that determines the scroll handling while the connected overlay is open. */
+export const MD_CONNECTED_OVERLAY_SCROLL_STRATEGY =
+    new InjectionToken<() => ScrollStrategy>('md-connected-overlay-scroll-strategy');
+
+/** @docs-private */
+export function MD_CONNECTED_OVERLAY_SCROLL_STRATEGY_PROVIDER_FACTORY(overlay: Overlay) {
+  return () => overlay.scrollStrategies.reposition();
+}
+
+/** @docs-private */
+export const MD_CONNECTED_OVERLAY_SCROLL_STRATEGY_PROVIDER = {
+  provide: MD_CONNECTED_OVERLAY_SCROLL_STRATEGY,
+  deps: [Overlay],
+  useFactory: MD_CONNECTED_OVERLAY_SCROLL_STRATEGY_PROVIDER_FACTORY,
+};
+
 
 
 /**
@@ -68,7 +94,7 @@ export class ConnectedOverlayDirective implements OnDestroy, OnChanges {
   private _overlayRef: OverlayRef;
   private _templatePortal: TemplatePortal;
   private _hasBackdrop = false;
-  private _backdropSubscription: Subscription;
+  private _backdropSubscription: Subscription | null;
   private _positionSubscription: Subscription;
   private _offsetX: number = 0;
   private _offsetY: number = 0;
@@ -123,7 +149,7 @@ export class ConnectedOverlayDirective implements OnDestroy, OnChanges {
   @Input() backdropClass: string;
 
   /** Strategy to be used when handling scroll events while the overlay is open. */
-  @Input() scrollStrategy: ScrollStrategy = this._overlay.scrollStrategies.reposition();
+  @Input() scrollStrategy: ScrollStrategy = this._scrollStrategy();
 
   /** Whether the overlay is open. */
   @Input() open: boolean = false;
@@ -157,7 +183,8 @@ export class ConnectedOverlayDirective implements OnDestroy, OnChanges {
       private _renderer: Renderer2,
       templateRef: TemplateRef<any>,
       viewContainerRef: ViewContainerRef,
-      @Optional() private _dir: Dir) {
+      @Inject(MD_CONNECTED_OVERLAY_SCROLL_STRATEGY) private _scrollStrategy,
+      @Optional() private _dir: Directionality) {
     this._templatePortal = new TemplatePortal(templateRef, viewContainerRef);
   }
 
@@ -167,7 +194,7 @@ export class ConnectedOverlayDirective implements OnDestroy, OnChanges {
   }
 
   /** The element's layout direction. */
-  get dir(): LayoutDirection {
+  get dir(): Direction {
     return this._dir ? this._dir.value : 'ltr';
   }
 
@@ -318,12 +345,3 @@ export class ConnectedOverlayDirective implements OnDestroy, OnChanges {
     });
   }
 }
-
-
-@NgModule({
-  imports: [PortalModule, ScrollDispatchModule],
-  exports: [ConnectedOverlayDirective, OverlayOrigin, ScrollDispatchModule],
-  declarations: [ConnectedOverlayDirective, OverlayOrigin],
-  providers: [OVERLAY_PROVIDERS],
-})
-export class OverlayModule {}

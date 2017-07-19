@@ -8,7 +8,7 @@ import {
   OverlayState,
   OverlayRef,
   OverlayModule,
-  ScrollStrategy,
+  OverlayContainer,
   ScrollDispatcher,
 } from '../../core';
 
@@ -23,7 +23,7 @@ describe('RepositionScrollStrategy', () => {
       imports: [OverlayModule, PortalModule, OverlayTestModule],
       providers: [
         {provide: ScrollDispatcher, useFactory: () => {
-          return {scrolled: (delay: number, callback: () => any) => {
+          return {scrolled: (_delay: number, callback: () => any) => {
             return scrolledSubject.asObservable().subscribe(callback);
           }};
         }}
@@ -40,9 +40,10 @@ describe('RepositionScrollStrategy', () => {
     componentPortal = new ComponentPortal(PastaMsg);
   }));
 
-  afterEach(() => {
+  afterEach(inject([OverlayContainer], (container: OverlayContainer) => {
     overlayRef.dispose();
-  });
+    container.getContainerElement().parentNode!.removeChild(container.getContainerElement());
+  }));
 
   it('should update the overlay position when the page is scrolled', () => {
     overlayRef.attach(componentPortal);

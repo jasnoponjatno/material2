@@ -1,8 +1,15 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import {NgModule} from '@angular/core';
 import {CommonModule} from '@angular/common';
-import {MdSelect} from './select';
-import {MdOptionModule} from '../core/option/option';
-import {MdCommonModule, OverlayModule} from '../core';
+import {MdSelect, MD_SELECT_SCROLL_STRATEGY_PROVIDER} from './select';
+import {MdCommonModule, OverlayModule, MdOptionModule} from '../core';
 
 
 @NgModule({
@@ -14,6 +21,7 @@ import {MdCommonModule, OverlayModule} from '../core';
   ],
   exports: [MdSelect, MdOptionModule, MdCommonModule],
   declarations: [MdSelect],
+  providers: [MD_SELECT_SCROLL_STRATEGY_PROVIDER]
 })
 export class MdSelectModule {}
 

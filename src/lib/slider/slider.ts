@@ -1,3 +1,11 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import {
   Component,
   ElementRef,
@@ -8,11 +16,13 @@ import {
   Optional,
   Output,
   Renderer2,
-  ViewEncapsulation
+  ViewEncapsulation,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
 } from '@angular/core';
 import {ControlValueAccessor, NG_VALUE_ACCESSOR} from '@angular/forms';
 import {coerceBooleanProperty, coerceNumberProperty, HammerInput} from '../core';
-import {Dir} from '../core/rtl/dir';
+import {Directionality} from '../core/bidi/index';
 import {
   DOWN_ARROW,
   END,
@@ -58,11 +68,12 @@ export class MdSliderChange {
   source: MdSlider;
 
   /** The new value of the source slider. */
-  value: number;
+  value: number | null;
 }
 
 
 // Boilerplate for applying mixins to MdSlider.
+/** @docs-private */
 export class MdSliderBase { }
 export const _MdSliderMixinBase = mixinDisabled(MdSliderBase);
 
@@ -109,31 +120,33 @@ export const _MdSliderMixinBase = mixinDisabled(MdSliderBase);
   styleUrls: ['slider.css'],
   inputs: ['disabled'],
   encapsulation: ViewEncapsulation.None,
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MdSlider extends _MdSliderMixinBase
     implements ControlValueAccessor, OnDestroy, CanDisable {
   /** Whether the slider is inverted. */
   @Input()
   get invert() { return this._invert; }
-  set invert(value: any) { this._invert = coerceBooleanProperty(value); }
+  set invert(value: any) {
+    this._invert = coerceBooleanProperty(value);
+  }
   private _invert = false;
 
   /** The maximum value that the slider can have. */
   @Input()
-  get max() {
-    return this._max;
-  }
+  get max() { return this._max; }
   set max(v: number) {
     this._max = coerceNumberProperty(v, this._max);
     this._percent = this._calculatePercentage(this._value);
+
+    // Since this also modifies the percentage, we need to let the change detection know.
+    this._changeDetectorRef.markForCheck();
   }
   private _max: number = 100;
 
   /** The minimum value that the slider can have. */
   @Input()
-  get min() {
-    return this._min;
-  }
+  get min() { return this._min; }
   set min(v: number) {
     this._min = coerceNumberProperty(v, this._min);
 
@@ -142,6 +155,9 @@ export class MdSlider extends _MdSliderMixinBase
       this.value = this._min;
     }
     this._percent = this._calculatePercentage(this._value);
+
+    // Since this also modifies the percentage, we need to let the change detection know.
+    this._changeDetectorRef.markForCheck();
   }
   private _min: number = 0;
 
@@ -152,8 +168,11 @@ export class MdSlider extends _MdSliderMixinBase
     this._step = coerceNumberProperty(v, this._step);
 
     if (this._step % 1 !== 0) {
-      this._roundLabelTo = this._step.toString().split('.').pop().length;
+      this._roundLabelTo = this._step.toString().split('.').pop()!.length;
     }
+
+    // Since this could modify the label, we need to notify the change detection.
+    this._changeDetectorRef.markForCheck();
   }
   private _step: number = 1;
 
@@ -199,16 +218,23 @@ export class MdSlider extends _MdSliderMixinBase
     }
     return this._value;
   }
-  set value(v: number) {
-    this._value = coerceNumberProperty(v, this._value);
-    this._percent = this._calculatePercentage(this._value);
+  set value(v: number | null) {
+    if (v !== this._value) {
+      this._value = coerceNumberProperty(v, this._value || 0);
+      this._percent = this._calculatePercentage(this._value);
+
+      // Since this also modifies the percentage, we need to let the change detection know.
+      this._changeDetectorRef.markForCheck();
+    }
   }
-  private _value: number = null;
+  private _value: number | null = null;
 
   /** Whether the slider is vertical. */
   @Input()
   get vertical() { return this._vertical; }
-  set vertical(value: any) { this._vertical = coerceBooleanProperty(value); }
+  set vertical(value: any) {
+    this._vertical = coerceBooleanProperty(value);
+  }
   private _vertical = false;
 
   @Input() color: 'primary' | 'accent' | 'warn' = 'accent';
@@ -220,15 +246,15 @@ export class MdSlider extends _MdSliderMixinBase
   @Output() input = new EventEmitter<MdSliderChange>();
 
   /** The value to be used for display purposes. */
-  get displayValue(): string|number {
+  get displayValue(): string | number {
     // Note that this could be improved further by rounding something like 0.999 to 1 or
     // 0.899 to 0.9, however it is very performance sensitive, because it gets called on
     // every change detection cycle.
-    if (this._roundLabelTo && this.value % 1 !== 0) {
+    if (this._roundLabelTo && this.value && this.value % 1 !== 0) {
       return this.value.toFixed(this._roundLabelTo);
     }
 
-    return this.value;
+    return this.value || 0;
   }
 
   /** onTouch function registered via registerOnTouch (ControlValueAccessor). */
@@ -352,18 +378,18 @@ export class MdSlider extends _MdSliderMixinBase
   private _tickIntervalPercent: number = 0;
 
   /** A renderer to handle updating the slider's thumb and fill track. */
-  private _renderer: SliderRenderer = null;
+  private _renderer: SliderRenderer;
 
   /** The dimensions of the slider. */
-  private _sliderDimensions: ClientRect = null;
+  private _sliderDimensions: ClientRect | null = null;
 
   private _controlValueAccessorChangeFn: (value: any) => void = () => {};
 
   /** The last value for which a change event was emitted. */
-  private _lastChangeValue: number = null;
+  private _lastChangeValue: number | null;
 
   /** The last value for which an input event was emitted. */
-  private _lastInputValue: number = null;
+  private _lastInputValue: number | null;
 
   /** Decimal places to round to, based on the step amount. */
   private _roundLabelTo: number;
@@ -382,9 +408,12 @@ export class MdSlider extends _MdSliderMixinBase
   }
 
   constructor(renderer: Renderer2, private _elementRef: ElementRef,
-              private _focusOriginMonitor: FocusOriginMonitor, @Optional() private _dir: Dir) {
+              private _focusOriginMonitor: FocusOriginMonitor,
+              private _changeDetectorRef: ChangeDetectorRef,
+              @Optional() private _dir: Directionality) {
     super();
-    this._focusOriginMonitor.monitor(this._elementRef.nativeElement, renderer, true)
+    this._focusOriginMonitor
+        .monitor(this._elementRef.nativeElement, renderer, true)
         .subscribe((origin: FocusOrigin) => this._isActive = !!origin && origin !== 'keyboard');
     this._renderer = new SliderRenderer(this._elementRef);
   }
@@ -502,6 +531,8 @@ export class MdSlider extends _MdSliderMixinBase
         // it.
         return;
     }
+    this._emitInputEvent();
+    this._emitValueIfChanged();
 
     this._isSliding = true;
     event.preventDefault();
@@ -513,9 +544,7 @@ export class MdSlider extends _MdSliderMixinBase
 
   /** Increments the slider by the given number of steps (negative number decrements). */
   private _increment(numSteps: number) {
-    this.value = this._clamp(this.value + this.step * numSteps, this.min, this.max);
-    this._emitInputEvent();
-    this._emitValueIfChanged();
+    this.value = this._clamp((this.value || 0) + this.step * numSteps, this.min, this.max);
   }
 
   /** Calculate the new value from the new physical location. The value will always be snapped. */
@@ -563,7 +592,7 @@ export class MdSlider extends _MdSliderMixinBase
 
   /** Updates the amount of space between ticks as a percentage of the width of the slider. */
   private _updateTickIntervalPercent() {
-    if (!this.tickInterval) {
+    if (!this.tickInterval || !this._sliderDimensions) {
       return;
     }
 
@@ -589,8 +618,8 @@ export class MdSlider extends _MdSliderMixinBase
   }
 
   /** Calculates the percentage of the slider that a value is. */
-  private _calculatePercentage(value: number) {
-    return (value - this.min) / (this.max - this.min);
+  private _calculatePercentage(value: number | null) {
+    return ((value || 0) - this.min) / (this.max - this.min);
   }
 
   /** Calculates the value a percentage of the slider corresponds to. */
@@ -657,7 +686,7 @@ export class SliderRenderer {
    */
   getSliderDimensions() {
     let wrapperElement = this._sliderElement.querySelector('.mat-slider-wrapper');
-    return wrapperElement.getBoundingClientRect();
+    return wrapperElement ? wrapperElement.getBoundingClientRect() : null;
   }
 
   /**

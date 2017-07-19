@@ -3,10 +3,17 @@
 # Script to publish the build artifacts to a GitHub repository.
 # Builds will be automatically published once new changes are made to the repository.
 
-set -e -o pipefail
+# The script should immediately exit if any command in the script fails.
+set -e
 
 # Go to the project root directory
 cd $(dirname ${0})/../..
+
+if [ -z ${MATERIAL2_BUILDS_TOKEN} ]; then
+  echo "Error: No access token for GitHub could be found." \
+       "Please set the environment variable 'MATERIAL2_BUILDS_TOKEN'."
+  exit 1
+fi
 
 # Material packages that need to published.
 PACKAGES=(cdk material)
@@ -23,7 +30,7 @@ publishPackage() {
   packageRepo=${2}
 
   buildDir="dist/releases/${packageName}"
-  buildVersion=$(sed -nE 's/^\s*"version": "(.*?)",$/\1/p' package.json)
+  buildVersion=$(node -pe "require('./package.json').version")
 
   commitSha=$(git rev-parse --short HEAD)
   commitAuthorName=$(git --no-pager show -s --format='%an' HEAD)
@@ -42,8 +49,8 @@ publishPackage() {
   rm -rf ${repoDir}
   mkdir -p ${repoDir}
 
-  # Clone the repository
-  git clone ${repoUrl} ${repoDir}
+  # Clone the repository and only fetch the last commit to download less unused data.
+  git clone ${repoUrl} ${repoDir} --depth 1
 
   # Copy the build files to the repository
   rm -rf ${repoDir}/*
@@ -53,7 +60,13 @@ publishPackage() {
   cd ${repoDir}
 
   # Update the package.json version to include the current commit SHA.
+  # Normally this "sed" call would just replace the version placeholder, but the version in the
+  # package.json file is already replaced by the release task of the current package.
   sed -i "s/${buildVersion}/${buildVersion}-${commitSha}/g" package.json
+
+  # For build artifacts the different Angular packages that refer to the 0.0.0-PLACEHOLDER should
+  # be replaced with the Github builds that are published at the same time.
+  sed -i "s/0.0.0-PLACEHOLDER/${buildVersion}-${commitSha}/g" package.json
 
   # Prepare Git for pushing the artifacts to the repository.
   git config user.name "${commitAuthorName}"
@@ -63,11 +76,11 @@ publishPackage() {
   echo "https://${MATERIAL2_BUILDS_TOKEN}:@github.com" > .git/credentials
 
   git add -A
-  git commit -m "${commitMessage}"
+  git commit --allow-empty -m "${commitMessage}"
   git tag "${buildVersion}-${commitSha}"
   git push origin master --tags
 
-  echo "Published artifacts for ${packageName} package."
+  echo "Published package artifacts for ${packageName}#${commitSha}."
 }
 
 for ((i = 0; i < ${#PACKAGES[@]}; i++)); do

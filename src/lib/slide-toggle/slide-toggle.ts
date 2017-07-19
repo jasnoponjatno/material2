@@ -1,3 +1,11 @@
+/**
+ * @license
+ * Copyright Google Inc. All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.io/license
+ */
+
 import {
   AfterContentInit,
   ChangeDetectionStrategy,
@@ -20,11 +28,15 @@ import {
   FocusOriginMonitor,
   HammerInput,
   MdRipple,
-  RippleRef
+  RippleRef,
+  Platform,
 } from '../core';
 import {ControlValueAccessor, NG_VALUE_ACCESSOR} from '@angular/forms';
 import {mixinDisabled, CanDisable} from '../core/common-behaviors/disabled';
+import {CanColor, mixinColor} from '../core/common-behaviors/color';
 
+// Increasing integer for generating unique ids for slide-toggle components.
+let nextUniqueId = 0;
 
 export const MD_SLIDE_TOGGLE_VALUE_ACCESSOR: any = {
   provide: NG_VALUE_ACCESSOR,
@@ -32,27 +44,26 @@ export const MD_SLIDE_TOGGLE_VALUE_ACCESSOR: any = {
   multi: true
 };
 
-// A simple change event emitted by the MdSlideToggle component.
+/** Change event object emitted by a MdSlideToggle. */
 export class MdSlideToggleChange {
   source: MdSlideToggle;
   checked: boolean;
 }
 
-// Increasing integer for generating unique ids for slide-toggle components.
-let nextId = 0;
-
-
-
 // Boilerplate for applying mixins to MdSlideToggle.
-export class MdSlideToggleBase { }
-export const _MdSlideToggleMixinBase = mixinDisabled(MdSlideToggleBase);
+/** @docs-private */
+export class MdSlideToggleBase {
+  constructor(public _renderer: Renderer2, public _elementRef: ElementRef) {}
+}
+export const _MdSlideToggleMixinBase = mixinColor(mixinDisabled(MdSlideToggleBase), 'accent');
 
 /** Represents a slidable "switch" toggle that can be moved between on and off. */
 @Component({
   moduleId: module.id,
   selector: 'md-slide-toggle, mat-slide-toggle',
   host: {
-    '[class.mat-slide-toggle]': 'true',
+    'class': 'mat-slide-toggle',
+    '[id]': 'id',
     '[class.mat-checked]': 'checked',
     '[class.mat-disabled]': 'disabled',
     '[class.mat-slide-toggle-label-before]': 'labelPosition == "before"',
@@ -60,28 +71,26 @@ export const _MdSlideToggleMixinBase = mixinDisabled(MdSlideToggleBase);
   templateUrl: 'slide-toggle.html',
   styleUrls: ['slide-toggle.css'],
   providers: [MD_SLIDE_TOGGLE_VALUE_ACCESSOR],
-  inputs: ['disabled'],
+  inputs: ['disabled', 'color'],
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class MdSlideToggle extends _MdSlideToggleMixinBase
-    implements OnDestroy, AfterContentInit, ControlValueAccessor, CanDisable {
+    implements OnDestroy, AfterContentInit, ControlValueAccessor, CanDisable, CanColor {
   private onChange = (_: any) => {};
   private onTouched = () => {};
 
-  // A unique id for the slide-toggle. By default the id is auto-generated.
-  private _uniqueId = `md-slide-toggle-${++nextId}`;
+  private _uniqueId: string = `md-slide-toggle-${++nextUniqueId}`;
   private _checked: boolean = false;
-  private _color: string;
-  private _slideRenderer: SlideToggleRenderer = null;
+  private _slideRenderer: SlideToggleRenderer;
   private _required: boolean = false;
   private _disableRipple: boolean = false;
 
   /** Reference to the focus state ripple. */
-  private _focusRipple: RippleRef;
+  private _focusRipple: RippleRef | null;
 
   /** Name value will be applied to the input element if present */
-  @Input() name: string = null;
+  @Input() name: string | null = null;
 
   /** A unique id for the slide-toggle input. If none is supplied, it will be auto-generated. */
   @Input() id: string = this._uniqueId;
@@ -93,10 +102,10 @@ export class MdSlideToggle extends _MdSlideToggleMixinBase
   @Input() labelPosition: 'before' | 'after' = 'after';
 
   /** Used to set the aria-label attribute on the underlying input element. */
-  @Input('aria-label') ariaLabel: string = null;
+  @Input('aria-label') ariaLabel: string | null = null;
 
   /** Used to set the aria-labelledby attribute on the underlying input element. */
-  @Input('aria-labelledby') ariaLabelledby: string = null;
+  @Input('aria-labelledby') ariaLabelledby: string | null = null;
 
   /** Whether the slide-toggle is required. */
   @Input()
@@ -120,15 +129,16 @@ export class MdSlideToggle extends _MdSlideToggleMixinBase
   /** Reference to the ripple directive on the thumb container. */
   @ViewChild(MdRipple) _ripple: MdRipple;
 
-  constructor(private _elementRef: ElementRef,
-              private _renderer: Renderer2,
+  constructor(elementRef: ElementRef,
+              renderer: Renderer2,
+              private _platform: Platform,
               private _focusOriginMonitor: FocusOriginMonitor,
               private _changeDetectorRef: ChangeDetectorRef) {
-    super();
+    super(renderer, elementRef);
   }
 
   ngAfterContentInit() {
-    this._slideRenderer = new SlideToggleRenderer(this._elementRef);
+    this._slideRenderer = new SlideToggleRenderer(this._elementRef, this._platform);
 
     this._focusOriginMonitor
       .monitor(this._inputElement.nativeElement, this._renderer, false)
@@ -197,7 +207,7 @@ export class MdSlideToggle extends _MdSlideToggleMixinBase
 
   /** Focuses the slide-toggle. */
   focus() {
-    this._focusOriginMonitor.focusVia(this._inputElement.nativeElement, this._renderer, 'keyboard');
+    this._focusOriginMonitor.focusVia(this._inputElement.nativeElement, 'keyboard');
   }
 
   /** Whether the slide-toggle is checked. */
@@ -208,13 +218,6 @@ export class MdSlideToggle extends _MdSlideToggleMixinBase
       this._checked = value;
       this.onChange(this._checked);
     }
-  }
-
-  /** The color of the slide-toggle. Can be primary, accent, or warn. */
-  @Input()
-  get color(): string { return this._color; }
-  set color(value: string) {
-    this._updateColor(value);
   }
 
   /** Toggles the checked state of the slide-toggle. */
@@ -234,22 +237,6 @@ export class MdSlideToggle extends _MdSlideToggleMixinBase
       if (this._focusRipple) {
         this._focusRipple.fadeOut();
         this._focusRipple = null;
-      }
-    }
-  }
-
-  private _updateColor(newColor: string) {
-    this._setElementColor(this._color, false);
-    this._setElementColor(newColor, true);
-    this._color = newColor;
-  }
-
-  private _setElementColor(color: string, isAdd: boolean) {
-    if (color != null && color != '') {
-      if (isAdd) {
-        this._renderer.addClass(this._elementRef.nativeElement, `mat-${color}`);
-      } else {
-        this._renderer.removeClass(this._elementRef.nativeElement, `mat-${color}`);
       }
     }
   }
@@ -315,9 +302,13 @@ class SlideToggleRenderer {
   /** Whether the thumb is currently being dragged. */
   dragging: boolean = false;
 
-  constructor(private _elementRef: ElementRef) {
-    this._thumbEl = _elementRef.nativeElement.querySelector('.mat-slide-toggle-thumb-container');
-    this._thumbBarEl = _elementRef.nativeElement.querySelector('.mat-slide-toggle-bar');
+  constructor(private _elementRef: ElementRef, platform: Platform) {
+    // We only need to interact with these elements when we're on the browser, so only grab
+    // the reference in that case.
+    if (platform.isBrowser) {
+      this._thumbEl = _elementRef.nativeElement.querySelector('.mat-slide-toggle-thumb-container');
+      this._thumbBarEl = _elementRef.nativeElement.querySelector('.mat-slide-toggle-bar');
+    }
   }
 
   /** Initializes the drag of the slide-toggle. */
@@ -333,7 +324,7 @@ class SlideToggleRenderer {
 
   /** Resets the current drag and returns the new checked value. */
   stopThumbDrag(): boolean {
-    if (!this.dragging) { return; }
+    if (!this.dragging) { return false; }
 
     this.dragging = false;
     this._thumbEl.classList.remove('mat-dragging');
