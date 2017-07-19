@@ -16,7 +16,7 @@ import {MdSelect, MdSelectFloatPlaceholderType} from './select';
 import {getMdSelectDynamicMultipleError, getMdSelectNonArrayValueError} from './select-errors';
 import {MdOption} from '../core/option/option';
 import {Dir} from '../core/rtl/dir';
-import {DOWN_ARROW, UP_ARROW, ENTER, SPACE} from '../core/keyboard/keycodes';
+import {DOWN_ARROW, UP_ARROW, ENTER, SPACE, HOME, END, TAB} from '../core/keyboard/keycodes';
 import {
   ControlValueAccessor, FormControl, FormsModule, NG_VALUE_ACCESSOR, ReactiveFormsModule
 } from '@angular/forms';
@@ -24,7 +24,6 @@ import {Subject} from 'rxjs/Subject';
 import {ViewportRuler} from '../core/overlay/position/viewport-ruler';
 import {dispatchFakeEvent, dispatchKeyboardEvent} from '../core/testing/dispatch-events';
 import {wrappedErrorMessage} from '../core/testing/wrapped-error-message';
-import {TAB} from '../core/keyboard/keycodes';
 import {ScrollDispatcher} from '../core/overlay/scroll/scroll-dispatcher';
 
 
@@ -56,7 +55,9 @@ describe('MdSelect', () => {
         SelectEarlyAccessSibling,
         BasicSelectInitiallyHidden,
         BasicSelectNoPlaceholder,
-        BasicSelectWithTheming
+        BasicSelectWithTheming,
+        ResetValuesSelect,
+        FalsyValueSelect
       ],
       providers: [
         {provide: OverlayContainer, useFactory: () => {
@@ -232,6 +233,44 @@ describe('MdSelect', () => {
       });
     }));
 
+    it('should focus the first option when pressing HOME', () => {
+      fixture.componentInstance.control.setValue('pizza-1');
+      fixture.detectChanges();
+
+      trigger.click();
+      fixture.detectChanges();
+
+      const panel = overlayContainerElement.querySelector('.mat-select-panel');
+      const event = dispatchKeyboardEvent(panel, 'keydown', HOME);
+
+      expect(fixture.componentInstance.select._keyManager.activeItemIndex).toBe(0);
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('should focus the last option when pressing END', () => {
+      fixture.componentInstance.control.setValue('pizza-1');
+      fixture.detectChanges();
+
+      trigger.click();
+      fixture.detectChanges();
+
+      const panel = overlayContainerElement.querySelector('.mat-select-panel');
+      const event = dispatchKeyboardEvent(panel, 'keydown', END);
+
+      expect(fixture.componentInstance.select._keyManager.activeItemIndex).toBe(7);
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it('should be able to set extra classes on the panel', () => {
+      trigger.click();
+      fixture.detectChanges();
+
+      const panel = overlayContainerElement.querySelector('.mat-select-panel') as HTMLElement;
+
+      expect(panel.classList).toContain('custom-one');
+      expect(panel.classList).toContain('custom-two');
+    });
+
   });
 
   describe('selection logic', () => {
@@ -298,6 +337,41 @@ describe('MdSelect', () => {
       const optionInstances = fixture.componentInstance.options.toArray();
       expect(optionInstances[1].selected).toBe(false);
       expect(optionInstances[2].selected).toBe(false);
+    });
+
+    it('should deselect other options when one is programmatically selected', () => {
+      let control = fixture.componentInstance.control;
+      let foods = fixture.componentInstance.foods;
+
+      trigger.click();
+      fixture.detectChanges();
+
+      let options =
+        overlayContainerElement.querySelectorAll('md-option') as NodeListOf<HTMLElement>;
+
+      options[0].click();
+      fixture.detectChanges();
+
+      control.setValue(foods[1].value);
+      fixture.detectChanges();
+
+      trigger.click();
+      fixture.detectChanges();
+
+      options =
+        overlayContainerElement.querySelectorAll('md-option') as NodeListOf<HTMLElement>;
+
+      expect(options[0].classList)
+        .not.toContain('mat-selected', 'Expected first option to no longer be selected');
+      expect(options[1].classList)
+        .toContain('mat-selected', 'Expected second option to be selected');
+
+      const optionInstances = fixture.componentInstance.options.toArray();
+
+      expect(optionInstances[0].selected)
+        .toBe(false, 'Expected first option to no longer be selected');
+      expect(optionInstances[1].selected)
+        .toBe(true, 'Expected second option to be selected');
     });
 
     it('should remove selection if option has been removed', async(() => {
@@ -556,6 +630,22 @@ describe('MdSelect', () => {
       fixture.detectChanges();
       expect(getComputedStyle(placeholder, '::after').getPropertyValue('content'))
         .toContain('*', `Expected placeholder to have an asterisk, as control was required.`);
+    });
+
+    it('should be able to programmatically select a falsy option', () => {
+      fixture.destroy();
+
+      const falsyFixture = TestBed.createComponent(FalsyValueSelect);
+
+      falsyFixture.detectChanges();
+      falsyFixture.debugElement.query(By.css('.mat-select-trigger')).nativeElement.click();
+      falsyFixture.componentInstance.control.setValue(0);
+      falsyFixture.detectChanges();
+
+      expect(falsyFixture.componentInstance.options.first.selected)
+        .toBe(true, 'Expected first option to be selected');
+      expect(overlayContainerElement.querySelectorAll('md-option')[0].classList)
+        .toContain('mat-selected', 'Expected first option to be selected');
     });
 
   });
@@ -1995,6 +2085,82 @@ describe('MdSelect', () => {
 
   });
 
+
+  describe('reset values', () => {
+    let fixture: ComponentFixture<ResetValuesSelect>;
+    let trigger: HTMLElement;
+    let placeholder: HTMLElement;
+    let options: NodeListOf<HTMLElement>;
+
+    beforeEach(() => {
+      fixture = TestBed.createComponent(ResetValuesSelect);
+      fixture.detectChanges();
+      trigger = fixture.debugElement.query(By.css('.mat-select-trigger')).nativeElement;
+      placeholder = fixture.debugElement.query(By.css('.mat-select-placeholder')).nativeElement;
+
+      trigger.click();
+      fixture.detectChanges();
+      options = overlayContainerElement.querySelectorAll('md-option') as NodeListOf<HTMLElement>;
+
+      options[0].click();
+      fixture.detectChanges();
+    });
+
+    it('should reset when an option with an undefined value is selected', () => {
+      options[4].click();
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.control.value).toBeUndefined();
+      expect(fixture.componentInstance.select.selected).toBeFalsy();
+      expect(placeholder.classList).not.toContain('mat-floating-placeholder');
+      expect(trigger.textContent).not.toContain('Undefined');
+    });
+
+    it('should reset when an option with a null value is selected', () => {
+      options[5].click();
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.control.value).toBeNull();
+      expect(fixture.componentInstance.select.selected).toBeFalsy();
+      expect(placeholder.classList).not.toContain('mat-floating-placeholder');
+      expect(trigger.textContent).not.toContain('Null');
+    });
+
+    it('should reset when a blank option is selected', () => {
+      options[6].click();
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.control.value).toBeUndefined();
+      expect(fixture.componentInstance.select.selected).toBeFalsy();
+      expect(placeholder.classList).not.toContain('mat-floating-placeholder');
+      expect(trigger.textContent).not.toContain('None');
+    });
+
+    it('should not reset when any other falsy option is selected', () => {
+      options[3].click();
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.control.value).toBe(false);
+      expect(fixture.componentInstance.select.selected).toBeTruthy();
+      expect(placeholder.classList).toContain('mat-floating-placeholder');
+      expect(trigger.textContent).toContain('Falsy');
+    });
+
+    it('should not consider the reset values as selected when resetting the form control', () => {
+      expect(placeholder.classList).toContain('mat-floating-placeholder');
+
+      fixture.componentInstance.control.reset();
+      fixture.detectChanges();
+
+      expect(fixture.componentInstance.control.value).toBeNull();
+      expect(fixture.componentInstance.select.selected).toBeFalsy();
+      expect(placeholder.classList).not.toContain('mat-floating-placeholder');
+      expect(trigger.textContent).not.toContain('Null');
+      expect(trigger.textContent).not.toContain('Undefined');
+    });
+
+  });
+
 });
 
 
@@ -2003,7 +2169,8 @@ describe('MdSelect', () => {
   template: `
     <div [style.height.px]="heightAbove"></div>
     <md-select placeholder="Food" [formControl]="control" [required]="isRequired"
-      [tabIndex]="tabIndexOverride" [aria-label]="ariaLabel" [aria-labelledby]="ariaLabelledby">
+      [tabIndex]="tabIndexOverride" [aria-label]="ariaLabel" [aria-labelledby]="ariaLabelledby"
+      [panelClass]="panelClass">
       <md-option *ngFor="let food of foods" [value]="food.value" [disabled]="food.disabled">
         {{ food.viewValue }}
       </md-option>
@@ -2029,6 +2196,7 @@ class BasicSelect {
   tabIndexOverride: number;
   ariaLabel: string;
   ariaLabelledby: string;
+  panelClass = ['custom-one', 'custom-two'];
 
   @ViewChild(MdSelect) select: MdSelect;
   @ViewChildren(MdOption) options: QueryList<MdOption>;
@@ -2338,4 +2506,47 @@ class BasicSelectNoPlaceholder { }
 class BasicSelectWithTheming {
   @ViewChild(MdSelect) select: MdSelect;
   theme: string;
+}
+
+@Component({
+  selector: 'reset-values-select',
+  template: `
+    <md-select placeholder="Food" [formControl]="control">
+      <md-option *ngFor="let food of foods" [value]="food.value">
+        {{ food.viewValue }}
+      </md-option>
+
+      <md-option>None</md-option>
+    </md-select>
+  `
+})
+class ResetValuesSelect {
+  foods: any[] = [
+    { value: 'steak-0', viewValue: 'Steak' },
+    { value: 'pizza-1', viewValue: 'Pizza' },
+    { value: 'tacos-2', viewValue: 'Tacos' },
+    { value: false, viewValue: 'Falsy' },
+    { viewValue: 'Undefined' },
+    { value: null, viewValue: 'Null' },
+  ];
+  control = new FormControl();
+
+  @ViewChild(MdSelect) select: MdSelect;
+}
+
+
+@Component({
+  template: `
+    <md-select [formControl]="control">
+      <md-option *ngFor="let food of foods" [value]="food.value">{{ food.viewValue }}</md-option>
+    </md-select>
+  `
+})
+class FalsyValueSelect {
+  foods: any[] = [
+    { value: 0, viewValue: 'Steak' },
+    { value: 1, viewValue: 'Pizza' },
+  ];
+  control = new FormControl();
+  @ViewChildren(MdOption) options: QueryList<MdOption>;
 }

@@ -45,8 +45,12 @@ export function throwMdDialogContentAlreadyAttachedError() {
   encapsulation: ViewEncapsulation.None,
   animations: [
     trigger('slideDialog', [
+      // Note: The `enter` animation doesn't transition to something like `translate3d(0, 0, 0)
+      // scale(1)`, because for some reason specifying the transform explicitly, causes IE both
+      // to blur the dialog content and decimate the animation performance. Leaving it blank
+      // solves both issues.
+      state('enter', style({ opacity: 1 })),
       state('void', style({ transform: 'translate3d(0, 25%, 0) scale(0.9)', opacity: 0 })),
-      state('enter', style({ transform: 'translate3d(0, 0, 0) scale(1)', opacity: 1 })),
       state('exit', style({ transform: 'translate3d(0, 25%, 0)', opacity: 0 })),
       transition('* => *', animate('400ms cubic-bezier(0.25, 0.8, 0.25, 1)')),
     ])
@@ -125,7 +129,7 @@ export class MdDialogContainer extends BasePortalHost {
     // If were to attempt to focus immediately, then the content of the dialog would not yet be
     // ready in instances where change detection has to run first. To deal with this, we simply
     // wait for the microtask queue to be empty.
-    this._focusTrap.focusFirstTabbableElementWhenReady();
+    this._focusTrap.focusInitialElementWhenReady();
   }
 
   /** Restores focus to the element that was focused before the dialog opened. */

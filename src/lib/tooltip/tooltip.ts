@@ -25,7 +25,6 @@ import {
   ComponentPortal,
   OverlayConnectionPosition,
   OriginConnectionPosition,
-  RepositionScrollStrategy,
 } from '../core';
 import {Observable} from 'rxjs/Observable';
 import {Subject} from 'rxjs/Subject';
@@ -235,10 +234,14 @@ export class MdTooltip implements OnDestroy {
         this.hide(0);
       }
     });
+
     let config = new OverlayState();
+
+    config.direction = this._dir ? this._dir.value : 'ltr';
     config.positionStrategy = strategy;
-    config.scrollStrategy =
-        new RepositionScrollStrategy(this._scrollDispatcher, SCROLL_THROTTLE_MS);
+    config.scrollStrategy = this._overlay.scrollStrategies.reposition({
+      scrollThrottle: SCROLL_THROTTLE_MS
+    });
 
     this._overlayRef = this._overlay.create(config);
   }
@@ -335,6 +338,9 @@ export type TooltipVisibility = 'initial' | 'visible' | 'hidden';
     ])
   ],
   host: {
+    // Forces the element to have a layout in IE and Edge. This fixes issues where the element
+    // won't be rendered if the animations are disabled or there is no web animations polyfill.
+    '[style.zoom]': '_visibility === "visible" ? 1 : null',
     '(body:click)': 'this._handleBodyInteraction()'
   }
 })

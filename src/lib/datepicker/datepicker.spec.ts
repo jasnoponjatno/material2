@@ -32,7 +32,7 @@ describe('MdDatepicker', () => {
         declarations: [
           DatepickerWithFilterAndValidation,
           DatepickerWithFormControl,
-          DatepickerWithMinAndMax,
+          DatepickerWithMinAndMaxValidation,
           DatepickerWithNgModel,
           DatepickerWithStartAt,
           DatepickerWithToggle,
@@ -413,12 +413,12 @@ describe('MdDatepicker', () => {
       });
     });
 
-    describe('datepicker with min and max dates', () => {
-      let fixture: ComponentFixture<DatepickerWithMinAndMax>;
-      let testComponent: DatepickerWithMinAndMax;
+    describe('datepicker with min and max dates and validation', () => {
+      let fixture: ComponentFixture<DatepickerWithMinAndMaxValidation>;
+      let testComponent: DatepickerWithMinAndMaxValidation;
 
       beforeEach(async(() => {
-        fixture = TestBed.createComponent(DatepickerWithMinAndMax);
+        fixture = TestBed.createComponent(DatepickerWithMinAndMaxValidation);
         fixture.detectChanges();
 
         testComponent = fixture.componentInstance;
@@ -432,6 +432,66 @@ describe('MdDatepicker', () => {
       it('should use min and max dates specified by the input', () => {
         expect(testComponent.datepicker._minDate).toEqual(new Date(2010, JAN, 1));
         expect(testComponent.datepicker._maxDate).toEqual(new Date(2020, JAN, 1));
+      });
+
+      it('should mark invalid when value is before min', () => {
+        testComponent.date = new Date(2009, DEC, 31);
+        fixture.detectChanges();
+
+        fixture.whenStable().then(() => {
+          fixture.detectChanges();
+
+          expect(fixture.debugElement.query(By.css('input')).nativeElement.classList)
+              .toContain('ng-invalid');
+        });
+      });
+
+      it('should mark invalid when value is after max', () => {
+        testComponent.date = new Date(2020, JAN, 2);
+        fixture.detectChanges();
+
+        fixture.whenStable().then(() => {
+          fixture.detectChanges();
+
+          expect(fixture.debugElement.query(By.css('input')).nativeElement.classList)
+              .toContain('ng-invalid');
+        });
+      });
+
+      it('should not mark invalid when value equals min', () => {
+        testComponent.date = testComponent.datepicker._minDate;
+        fixture.detectChanges();
+
+        fixture.whenStable().then(() => {
+          fixture.detectChanges();
+
+          expect(fixture.debugElement.query(By.css('input')).nativeElement.classList)
+              .not.toContain('ng-invalid');
+        });
+      });
+
+      it('should not mark invalid when value equals max', () => {
+        testComponent.date = testComponent.datepicker._maxDate;
+        fixture.detectChanges();
+
+        fixture.whenStable().then(() => {
+          fixture.detectChanges();
+
+          expect(fixture.debugElement.query(By.css('input')).nativeElement.classList)
+              .not.toContain('ng-invalid');
+        });
+      });
+
+      it('should not mark invalid when value is between min and max', () => {
+        testComponent.date = new Date(2010, JAN, 2);
+        fixture.detectChanges();
+
+        fixture.whenStable().then(() => {
+          fixture.detectChanges();
+
+          expect(fixture.debugElement.query(By.css('input')).nativeElement.classList)
+              .not.toContain('ng-invalid');
+        });
       });
     });
 
@@ -508,6 +568,82 @@ describe('MdDatepicker', () => {
       expect(() => TestBed.createComponent(StandardDatepicker))
           .toThrowError(/MdDatepicker: No provider found for .*/);
     });
+  });
+
+  describe('popup positioning', () => {
+    let fixture: ComponentFixture<StandardDatepicker>;
+    let testComponent: StandardDatepicker;
+    let input: HTMLElement;
+
+    beforeEach(async(() => {
+      TestBed.configureTestingModule({
+        imports: [MdDatepickerModule, MdInputModule, MdNativeDateModule, NoopAnimationsModule],
+        declarations: [StandardDatepicker],
+      }).compileComponents();
+
+      fixture = TestBed.createComponent(StandardDatepicker);
+      fixture.detectChanges();
+      testComponent = fixture.componentInstance;
+      input = fixture.debugElement.query(By.css('input')).nativeElement;
+      input.style.position = 'fixed';
+    }));
+
+    it('should be below and to the right when there is plenty of space', () => {
+      input.style.top = input.style.left = '20px';
+      testComponent.datepicker.open();
+      fixture.detectChanges();
+
+      const overlayRect = document.querySelector('.cdk-overlay-pane').getBoundingClientRect();
+      const inputRect = input.getBoundingClientRect();
+
+      expect(Math.floor(overlayRect.top))
+          .toBe(Math.floor(inputRect.bottom), 'Expected popup to align to input bottom.');
+      expect(Math.floor(overlayRect.left))
+          .toBe(Math.floor(inputRect.left), 'Expected popup to align to input left.');
+    });
+
+    it('should be above and to the right when there is no space below', () => {
+      input.style.bottom = input.style.left = '20px';
+      testComponent.datepicker.open();
+      fixture.detectChanges();
+
+      const overlayRect = document.querySelector('.cdk-overlay-pane').getBoundingClientRect();
+      const inputRect = input.getBoundingClientRect();
+
+      expect(Math.floor(overlayRect.bottom))
+          .toBe(Math.floor(inputRect.top), 'Expected popup to align to input top.');
+      expect(Math.floor(overlayRect.left))
+          .toBe(Math.floor(inputRect.left), 'Expected popup to align to input left.');
+    });
+
+    it('should be below and to the left when there is no space on the right', () => {
+      input.style.top = input.style.right = '20px';
+      testComponent.datepicker.open();
+      fixture.detectChanges();
+
+      const overlayRect = document.querySelector('.cdk-overlay-pane').getBoundingClientRect();
+      const inputRect = input.getBoundingClientRect();
+
+      expect(Math.floor(overlayRect.top))
+          .toBe(Math.floor(inputRect.bottom), 'Expected popup to align to input bottom.');
+      expect(Math.floor(overlayRect.right))
+          .toBe(Math.floor(inputRect.right), 'Expected popup to align to input right.');
+    });
+
+    it('should be above and to the left when there is no space on the bottom', () => {
+      input.style.bottom = input.style.right = '20px';
+      testComponent.datepicker.open();
+      fixture.detectChanges();
+
+      const overlayRect = document.querySelector('.cdk-overlay-pane').getBoundingClientRect();
+      const inputRect = input.getBoundingClientRect();
+
+      expect(Math.floor(overlayRect.bottom))
+          .toBe(Math.floor(inputRect.top), 'Expected popup to align to input top.');
+      expect(Math.floor(overlayRect.right))
+          .toBe(Math.floor(inputRect.right), 'Expected popup to align to input right.');
+    });
+
   });
 });
 
@@ -606,14 +742,16 @@ class InputContainerDatepicker {
 
 @Component({
   template: `
-    <input [mdDatepicker]="d" [min]="minDate" [max]="maxDate">
+    <input [mdDatepicker]="d" [(ngModel)]="date" [min]="minDate" [max]="maxDate">
+    <button [mdDatepickerToggle]="d"></button>
     <md-datepicker #d></md-datepicker>
   `,
 })
-class DatepickerWithMinAndMax {
+class DatepickerWithMinAndMaxValidation {
+  @ViewChild('d') datepicker: MdDatepicker<Date>;
+  date: Date;
   minDate = new Date(2010, JAN, 1);
   maxDate = new Date(2020, JAN, 1);
-  @ViewChild('d') datepicker: MdDatepicker<Date>;
 }
 
 

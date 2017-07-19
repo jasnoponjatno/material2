@@ -1,5 +1,5 @@
 import {task, watch} from 'gulp';
-import {DIST_ROOT, SOURCE_ROOT, PROJECT_ROOT, DIST_BUNDLES, DIST_MATERIAL} from '../constants';
+import {DIST_ROOT, SOURCE_ROOT, PROJECT_ROOT, DIST_BUNDLES, DIST_MATERIAL} from '../build-config';
 import {
   sassBuildTask, tsBuildTask, copyTask, buildAppTask, sequenceTask, triggerLivereload,
   serverTask
@@ -25,6 +25,11 @@ task(':watch:devapp', () => {
   watch(join(appDir, '**/*.ts'), [':build:devapp:ts', triggerLivereload]);
   watch(join(appDir, '**/*.scss'), [':build:devapp:scss', triggerLivereload]);
   watch(join(appDir, '**/*.html'), [':build:devapp:assets', triggerLivereload]);
+
+  // The themes for the demo-app are built by the demo-app using the SCSS mixins from Material.
+  // Therefore when the CSS files have been changed the SCSS mixins have been refreshed and
+  // copied over. Rebuilt the theme CSS using the updated SCSS mixins.
+  watch(join(DIST_MATERIAL, '**/*.css'), [':build:devapp:scss', triggerLivereload]);
 });
 
 /** Path to the demo-app tsconfig file. */
