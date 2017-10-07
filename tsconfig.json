@@ -2,28 +2,20 @@
 // IDEs and TSLint. For IDEs it ensures that `experimentalDecorator` warnings are not showing up.
 {
   "compilerOptions": {
-    "rootDir": ".",
+    "outDir": "./dist/packages/all",
     "experimentalDecorators": true,
     "module": "es2015",
     "moduleResolution": "node",
     "noUnusedParameters": true,
     "strictNullChecks": true,
     "skipLibCheck": true,
-    "outDir": "./dist/packages/all",
     "target": "es2015",
     "lib": ["es5", "es2015", "dom"],
-    "types": ["jasmine"],
-    "baseUrl": ".",
-    "paths": {
-      "@angular/material": ["./src/lib/public_api.ts"],
-      "@angular/cdk": ["./src/cdk/public_api.ts"],
-      "@angular/cdk/testing": ["./src/cdk/testing"],
-      "@angular/material-examples": ["./src/material-examples"]
-    }
+    "types": ["jasmine"]
   },
   "include": [
     "src/**/*.ts",
-    "tools/**.ts"
+    "tools/**/*.ts"
   ],
   "exclude": [
     // Exclude files that depend on Node APIs because those depend on the Node types and therefore
@@ -32,6 +24,8 @@
 
     // IDEs should not type-check the different node_modules directories of the different packages.
     // This would cause the IDEs to be slower and also linters would check the node_modules.
-    "**/node_modules"
+    "node_modules/",
+    "tools/dashboard/node_modules/",
+    "tools/screenshot-test/node_modules/"
   ]
 }

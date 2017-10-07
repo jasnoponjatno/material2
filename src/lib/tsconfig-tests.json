@@ -8,11 +8,9 @@
     "module": "commonjs",
     "target": "es5",
     "types": ["jasmine"],
-    "experimentalDecorators": true,
-    "strictNullChecks": true,
     "paths": {
-      "@angular/cdk": ["../../dist/packages/cdk"],
-      "@angular/cdk/testing": ["../../dist/packages/cdk/testing"]
+      "@angular/material/*": ["./*"],
+      "@angular/cdk/*": ["../../dist/packages/cdk/*/public-api"]
     }
   },
   "include": [

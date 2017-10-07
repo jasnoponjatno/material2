@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright Google Inc. All Rights Reserved.
+ * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
@@ -8,15 +8,20 @@
 
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   EventEmitter,
   Input,
+  OnDestroy,
   OnInit,
   Output,
-  ViewEncapsulation
+  ViewEncapsulation,
 } from '@angular/core';
-import {MdPaginatorIntl} from './paginator-intl';
-import {MATERIAL_COMPATIBILITY_MODE} from '../core';
+import {Subscription} from 'rxjs/Subscription';
+import {MatPaginatorIntl} from './paginator-intl';
+
+/** The default page size if there is no page size and there are no provided page size options. */
+const DEFAULT_PAGE_SIZE = 50;
 
 /**
  * Change event object that is emitted when the user selects a
@@ -40,26 +45,38 @@ export class PageEvent {
  */
 @Component({
   moduleId: module.id,
-  selector: 'md-paginator, mat-paginator',
+  selector: 'mat-paginator',
+  exportAs: 'matPaginator',
   templateUrl: 'paginator.html',
   styleUrls: ['paginator.css'],
   host: {
     'class': 'mat-paginator',
   },
-  providers: [
-    {provide: MATERIAL_COMPATIBILITY_MODE, useValue: false}
-  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
+  preserveWhitespaces: false,
 })
-export class MdPaginator implements OnInit {
+export class MatPaginator implements OnInit, OnDestroy {
   private _initialized: boolean;
+  private _intlChanges: Subscription;
 
   /** The zero-based page index of the displayed list of items. Defaulted to 0. */
-  @Input() pageIndex: number = 0;
+  @Input()
+  get pageIndex(): number { return this._pageIndex; }
+  set pageIndex(pageIndex: number) {
+    this._pageIndex = pageIndex;
+    this._changeDetectorRef.markForCheck();
+  }
+  _pageIndex: number = 0;
 
   /** The length of the total number of items that are being paginated. Defaulted to 0. */
-  @Input() length: number = 0;
+  @Input()
+  get length(): number { return this._length; }
+  set length(length: number) {
+    this._length = length;
+    this._changeDetectorRef.markForCheck();
+  }
+  _length: number = 0;
 
   /** Number of items to display on a page. By default set to 50. */
   @Input()
@@ -68,7 +85,7 @@ export class MdPaginator implements OnInit {
     this._pageSize = pageSize;
     this._updateDisplayedPageSizeOptions();
   }
-  private _pageSize: number = 50;
+  private _pageSize: number;
 
   /** The set of provided page size options to display to the user. */
   @Input()
@@ -85,11 +102,18 @@ export class MdPaginator implements OnInit {
   /** Displayed set of page size options. Will be sorted and include current page size. */
   _displayedPageSizeOptions: number[];
 
-  constructor(public _intl: MdPaginatorIntl) { }
+  constructor(public _intl: MatPaginatorIntl,
+              private _changeDetectorRef: ChangeDetectorRef) {
+    this._intlChanges = _intl.changes.subscribe(() => this._changeDetectorRef.markForCheck());
+  }
 
   ngOnInit() {
     this._initialized = true;
     this._updateDisplayedPageSizeOptions();
+  }
+
+  ngOnDestroy() {
+    this._intlChanges.unsubscribe();
   }
 
   /** Advances to the next page if it exists. */
@@ -142,6 +166,13 @@ export class MdPaginator implements OnInit {
   private _updateDisplayedPageSizeOptions() {
     if (!this._initialized) { return; }
 
+    // If no page size is provided, use the first page size option or the default page size.
+    if (!this.pageSize) {
+      this._pageSize = this.pageSizeOptions.length != 0 ?
+          this.pageSizeOptions[0] :
+          DEFAULT_PAGE_SIZE;
+    }
+
     this._displayedPageSizeOptions = this.pageSizeOptions.slice();
     if (this._displayedPageSizeOptions.indexOf(this.pageSize) == -1) {
       this._displayedPageSizeOptions.push(this.pageSize);
@@ -149,6 +180,8 @@ export class MdPaginator implements OnInit {
 
     // Sort the numbers using a number-specific sort function.
     this._displayedPageSizeOptions.sort((a, b) => a - b);
+
+    this._changeDetectorRef.markForCheck();
   }
 
   /** Emits an event notifying that a change of the paginator's properties has been triggered. */

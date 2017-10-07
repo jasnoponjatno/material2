@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright Google Inc. All Rights Reserved.
+ * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
@@ -14,7 +14,7 @@ import {
   SkipSelf,
   OnDestroy,
 } from '@angular/core';
-import {Platform} from '../platform/platform';
+import {Platform} from '@angular/cdk/platform';
 
 
 export const LIVE_ANNOUNCER_ELEMENT_TOKEN = new InjectionToken<HTMLElement>('liveAnnouncerElement');
@@ -77,11 +77,13 @@ export class LiveAnnouncer implements OnDestroy {
 
 }
 
+/** @docs-private */
 export function LIVE_ANNOUNCER_PROVIDER_FACTORY(
     parentDispatcher: LiveAnnouncer, liveElement: any, platform: Platform) {
   return parentDispatcher || new LiveAnnouncer(liveElement, platform);
 }
 
+/** @docs-private */
 export const LIVE_ANNOUNCER_PROVIDER = {
   // If there is already a LiveAnnouncer available, use that. Otherwise, provide a new one.
   provide: LiveAnnouncer,

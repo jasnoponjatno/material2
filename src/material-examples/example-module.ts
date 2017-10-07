@@ -13,7 +13,10 @@ export interface LiveExample {
   selectorName?: string;
 }
 
+import {AutocompleteDisplayExample} from './autocomplete-display/autocomplete-display-example';
+import {AutocompleteFilterExample} from './autocomplete-filter/autocomplete-filter-example';
 import {AutocompleteOverviewExample} from './autocomplete-overview/autocomplete-overview-example';
+import {AutocompleteSimpleExample} from './autocomplete-simple/autocomplete-simple-example';
 import {ButtonOverviewExample} from './button-overview/button-overview-example';
 import {ButtonToggleExclusiveExample} from './button-toggle-exclusive/button-toggle-exclusive-example';
 import {ButtonToggleOverviewExample} from './button-toggle-overview/button-toggle-overview-example';
@@ -23,6 +26,7 @@ import {CardOverviewExample} from './card-overview/card-overview-example';
 import {CdkTableBasicExample} from './cdk-table-basic/cdk-table-basic-example';
 import {CheckboxConfigurableExample} from './checkbox-configurable/checkbox-configurable-example';
 import {CheckboxOverviewExample} from './checkbox-overview/checkbox-overview-example';
+import {ChipsInputExample} from './chips-input/chips-input-example';
 import {ChipsOverviewExample} from './chips-overview/chips-overview-example';
 import {ChipsStackedExample} from './chips-stacked/chips-stacked-example';
 import {DatepickerApiExample} from './datepicker-api/datepicker-api-example';
@@ -35,6 +39,15 @@ import {DialogContentExampleDialog,DialogContentExample} from './dialog-content/
 import {DialogDataExampleDialog,DialogDataExample} from './dialog-data/dialog-data-example';
 import {DialogElementsExampleDialog,DialogElementsExample} from './dialog-elements/dialog-elements-example';
 import {DialogOverviewExampleDialog,DialogOverviewExample} from './dialog-overview/dialog-overview-example';
+import {ExpansionOverviewExample} from './expansion-overview/expansion-overview-example';
+import {ExpansionStepsExample} from './expansion-steps/expansion-steps-example';
+import {MyTelInput,FormFieldCustomControlExample} from './form-field-custom-control/form-field-custom-control-example';
+import {FormFieldErrorExample} from './form-field-error/form-field-error-example';
+import {FormFieldHintExample} from './form-field-hint/form-field-hint-example';
+import {FormFieldOverviewExample} from './form-field-overview/form-field-overview-example';
+import {FormFieldPlaceholderExample} from './form-field-placeholder/form-field-placeholder-example';
+import {FormFieldPrefixSuffixExample} from './form-field-prefix-suffix/form-field-prefix-suffix-example';
+import {FormFieldThemingExample} from './form-field-theming/form-field-theming-example';
 import {GridListDynamicExample} from './grid-list-dynamic/grid-list-dynamic-example';
 import {GridListOverviewExample} from './grid-list-overview/grid-list-overview-example';
 import {IconOverviewExample} from './icon-overview/icon-overview-example';
@@ -47,8 +60,10 @@ import {InputOverviewExample} from './input-overview/input-overview-example';
 import {InputPrefixSuffixExample} from './input-prefix-suffix/input-prefix-suffix-example';
 import {ListOverviewExample} from './list-overview/list-overview-example';
 import {ListSectionsExample} from './list-sections/list-sections-example';
+import {ListSelectionExample} from './list-selection/list-selection-example';
 import {MenuIconsExample} from './menu-icons/menu-icons-example';
 import {MenuOverviewExample} from './menu-overview/menu-overview-example';
+import {NestedMenuExample} from './nested-menu/nested-menu-example';
 import {PaginatorConfigurableExample} from './paginator-configurable/paginator-configurable-example';
 import {PaginatorOverviewExample} from './paginator-overview/paginator-overview-example';
 import {ProgressBarConfigurableExample} from './progress-bar-configurable/progress-bar-configurable-example';
@@ -69,8 +84,10 @@ import {SliderOverviewExample} from './slider-overview/slider-overview-example';
 import {PizzaPartyComponent,SnackBarComponentExample} from './snack-bar-component/snack-bar-component-example';
 import {SnackBarOverviewExample} from './snack-bar-overview/snack-bar-overview-example';
 import {SortOverviewExample} from './sort-overview/sort-overview-example';
+import {StepperOverviewExample} from './stepper-overview/stepper-overview-example';
 import {TableBasicExample} from './table-basic/table-basic-example';
 import {TableFilteringExample} from './table-filtering/table-filtering-example';
+import {TableHttpExample} from './table-http/table-http-example';
 import {TableOverviewExample} from './table-overview/table-overview-example';
 import {TablePaginationExample} from './table-pagination/table-pagination-example';
 import {TableSortingExample} from './table-sorting/table-sorting-example';
@@ -82,9 +99,27 @@ import {TooltipOverviewExample} from './tooltip-overview/tooltip-overview-exampl
 import {TooltipPositionExample} from './tooltip-position/tooltip-position-example';
 
 export const EXAMPLE_COMPONENTS = {
+  'autocomplete-display': {
+    title: 'Display value autocomplete',
+    component: AutocompleteDisplayExample,
+    additionalFiles: null,
+    selectorName: null
+  },
+  'autocomplete-filter': {
+    title: 'Filter autocomplete',
+    component: AutocompleteFilterExample,
+    additionalFiles: null,
+    selectorName: null
+  },
   'autocomplete-overview': {
-    title: 'Basic autocomplete',
+    title: 'Autocomplete overview',
     component: AutocompleteOverviewExample,
+    additionalFiles: null,
+    selectorName: null
+  },
+  'autocomplete-simple': {
+    title: 'Simple autocomplete',
+    component: AutocompleteSimpleExample,
     additionalFiles: null,
     selectorName: null
   },
@@ -139,6 +174,12 @@ export const EXAMPLE_COMPONENTS = {
   'checkbox-overview': {
     title: 'Basic checkboxes',
     component: CheckboxOverviewExample,
+    additionalFiles: null,
+    selectorName: null
+  },
+  'chips-input': {
+    title: 'Chips with input',
+    component: ChipsInputExample,
     additionalFiles: null,
     selectorName: null
   },
@@ -214,6 +255,60 @@ export const EXAMPLE_COMPONENTS = {
     additionalFiles: ["dialog-overview-example-dialog.html"],
     selectorName: 'DialogOverviewExample, DialogOverviewExampleDialog'
   },
+  'expansion-overview': {
+    title: 'Basic expansion panel',
+    component: ExpansionOverviewExample,
+    additionalFiles: null,
+    selectorName: null
+  },
+  'expansion-steps': {
+    title: 'Expansion panel as accordion',
+    component: ExpansionStepsExample,
+    additionalFiles: null,
+    selectorName: null
+  },
+  'form-field-custom-control': {
+    title: 'Form field with custom telephone number input control. ',
+    component: FormFieldCustomControlExample,
+    additionalFiles: ["form-field-custom-control-example.html"],
+    selectorName: 'FormFieldCustomControlExample, MyTelInput'
+  },
+  'form-field-error': {
+    title: 'Form field with error messages ',
+    component: FormFieldErrorExample,
+    additionalFiles: null,
+    selectorName: null
+  },
+  'form-field-hint': {
+    title: 'Form field with hints ',
+    component: FormFieldHintExample,
+    additionalFiles: null,
+    selectorName: null
+  },
+  'form-field-overview': {
+    title: 'Simple form field ',
+    component: FormFieldOverviewExample,
+    additionalFiles: null,
+    selectorName: null
+  },
+  'form-field-placeholder': {
+    title: 'Form field with placeholder ',
+    component: FormFieldPlaceholderExample,
+    additionalFiles: null,
+    selectorName: null
+  },
+  'form-field-prefix-suffix': {
+    title: 'Form field with prefix & suffix ',
+    component: FormFieldPrefixSuffixExample,
+    additionalFiles: null,
+    selectorName: null
+  },
+  'form-field-theming': {
+    title: 'Form field theming ',
+    component: FormFieldThemingExample,
+    additionalFiles: null,
+    selectorName: null
+  },
   'grid-list-dynamic': {
     title: 'Dynamic grid-list',
     component: GridListDynamicExample,
@@ -286,6 +381,12 @@ export const EXAMPLE_COMPONENTS = {
     additionalFiles: null,
     selectorName: null
   },
+  'list-selection': {
+    title: 'List with selection',
+    component: ListSelectionExample,
+    additionalFiles: null,
+    selectorName: null
+  },
   'menu-icons': {
     title: 'Menu with icons',
     component: MenuIconsExample,
@@ -295,6 +396,12 @@ export const EXAMPLE_COMPONENTS = {
   'menu-overview': {
     title: 'Basic menu',
     component: MenuOverviewExample,
+    additionalFiles: null,
+    selectorName: null
+  },
+  'nested-menu': {
+    title: 'Nested menu',
+    component: NestedMenuExample,
     additionalFiles: null,
     selectorName: null
   },
@@ -418,6 +525,12 @@ export const EXAMPLE_COMPONENTS = {
     additionalFiles: null,
     selectorName: null
   },
+  'stepper-overview': {
+    title: 'Stepper overview',
+    component: StepperOverviewExample,
+    additionalFiles: null,
+    selectorName: null
+  },
   'table-basic': {
     title: 'Basic table',
     component: TableBasicExample,
@@ -427,6 +540,12 @@ export const EXAMPLE_COMPONENTS = {
   'table-filtering': {
     title: 'Table with filtering',
     component: TableFilteringExample,
+    additionalFiles: null,
+    selectorName: null
+  },
+  'table-http': {
+    title: 'Table retrieving data through HTTP',
+    component: TableHttpExample,
     additionalFiles: null,
     selectorName: null
   },
@@ -455,7 +574,7 @@ export const EXAMPLE_COMPONENTS = {
     selectorName: null
   },
   'tabs-template-label': {
-    title: 'Coming soon!',
+    title: 'Complex Example',
     component: TabsTemplateLabelExample,
     additionalFiles: null,
     selectorName: null
@@ -487,7 +606,10 @@ export const EXAMPLE_COMPONENTS = {
 };
 
 export const EXAMPLE_LIST = [
+  AutocompleteDisplayExample,
+  AutocompleteFilterExample,
   AutocompleteOverviewExample,
+  AutocompleteSimpleExample,
   ButtonOverviewExample,
   ButtonToggleExclusiveExample,
   ButtonToggleOverviewExample,
@@ -497,6 +619,7 @@ export const EXAMPLE_LIST = [
   CdkTableBasicExample,
   CheckboxConfigurableExample,
   CheckboxOverviewExample,
+  ChipsInputExample,
   ChipsOverviewExample,
   ChipsStackedExample,
   DatepickerApiExample,
@@ -509,6 +632,15 @@ export const EXAMPLE_LIST = [
   DialogDataExampleDialog,DialogDataExample,
   DialogElementsExampleDialog,DialogElementsExample,
   DialogOverviewExampleDialog,DialogOverviewExample,
+  ExpansionOverviewExample,
+  ExpansionStepsExample,
+  MyTelInput,FormFieldCustomControlExample,
+  FormFieldErrorExample,
+  FormFieldHintExample,
+  FormFieldOverviewExample,
+  FormFieldPlaceholderExample,
+  FormFieldPrefixSuffixExample,
+  FormFieldThemingExample,
   GridListDynamicExample,
   GridListOverviewExample,
   IconOverviewExample,
@@ -521,8 +653,10 @@ export const EXAMPLE_LIST = [
   InputPrefixSuffixExample,
   ListOverviewExample,
   ListSectionsExample,
+  ListSelectionExample,
   MenuIconsExample,
   MenuOverviewExample,
+  NestedMenuExample,
   PaginatorConfigurableExample,
   PaginatorOverviewExample,
   ProgressBarConfigurableExample,
@@ -543,8 +677,10 @@ export const EXAMPLE_LIST = [
   PizzaPartyComponent,SnackBarComponentExample,
   SnackBarOverviewExample,
   SortOverviewExample,
+  StepperOverviewExample,
   TableBasicExample,
   TableFilteringExample,
+  TableHttpExample,
   TableOverviewExample,
   TablePaginationExample,
   TableSortingExample,

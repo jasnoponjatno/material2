@@ -1,8 +1,8 @@
-import {TestBed, async, inject} from '@angular/core/testing';
+import {Platform} from '@angular/cdk/platform';
 import {LOCALE_ID} from '@angular/core';
-import {NativeDateAdapter, NativeDateModule, DateAdapter} from './index';
-import {Platform} from '../platform/index';
+import {async, inject, TestBed} from '@angular/core/testing';
 import {DEC, FEB, JAN, MAR} from '../testing/month-constants';
+import {DateAdapter, MAT_DATE_LOCALE, NativeDateAdapter, NativeDateModule} from './index';
 
 const SUPPORTS_INTL = typeof Intl != 'undefined';
 
@@ -196,8 +196,13 @@ describe('NativeDateAdapter', () => {
     expect(adapter.parse(date)).not.toBe(date);
   });
 
-  it('should parse invalid value as null', () => {
-    expect(adapter.parse('hello')).toBeNull();
+  it('should parse invalid value as invalid', () => {
+    let d = adapter.parse('hello');
+    expect(d).not.toBeNull();
+    expect(adapter.isDateInstance(d))
+        .toBe(true, 'Expected string to have been fed through Date.parse');
+    expect(adapter.isValid(d as Date))
+        .toBe(false, 'Expected to parse as "invalid date" object');
   });
 
   it('should format', () => {
@@ -236,6 +241,11 @@ describe('NativeDateAdapter', () => {
     } else {
       expect(adapter.format(new Date(2017, JAN, 1), {})).toEqual('Sun Jan 01 2017');
     }
+  });
+
+  it('should throw when attempting to format invalid date', () => {
+    expect(() => adapter.format(new Date(NaN), {}))
+        .toThrowError(/NativeDateAdapter: Cannot format invalid date\./);
   });
 
   it('should add years', () => {
@@ -296,8 +306,68 @@ describe('NativeDateAdapter', () => {
         new Date(2018, FEB, 1), new Date(2018, JAN, 1), new Date(2019, JAN, 1)))
         .toEqual(new Date(2018, FEB, 1));
   });
+
+  it('should use UTC for formatting by default', () => {
+    if (SUPPORTS_INTL) {
+      expect(adapter.format(new Date(1800, 7, 14), {day: 'numeric'})).toBe('14');
+    } else {
+      expect(adapter.format(new Date(1800, 7, 14), {day: 'numeric'})).toBe('Thu Aug 14 1800');
+    }
+  });
+
+  it('should count today as a valid date instance', () => {
+    let d = new Date();
+    expect(adapter.isValid(d)).toBe(true);
+    expect(adapter.isDateInstance(d)).toBe(true);
+  });
+
+  it('should count an invalid date as an invalid date instance', () => {
+    let d = new Date(NaN);
+    expect(adapter.isValid(d)).toBe(false);
+    expect(adapter.isDateInstance(d)).toBe(true);
+  });
+
+  it('should count a string as not a date instance', () => {
+    let d = '1/1/2017';
+    expect(adapter.isDateInstance(d)).toBe(false);
+  });
+
+  it('should create dates from valid ISO strings', () => {
+    expect(adapter.fromIso8601('1985-04-12T23:20:50.52Z')).not.toBeNull();
+    expect(adapter.fromIso8601('1996-12-19T16:39:57-08:00')).not.toBeNull();
+    expect(adapter.fromIso8601('1937-01-01T12:00:27.87+00:20')).not.toBeNull();
+    expect(adapter.fromIso8601('2017-01-01')).not.toBeNull();
+    expect(adapter.fromIso8601('2017-01-01T00:00:00')).not.toBeNull();
+    expect(adapter.fromIso8601('1990-13-31T23:59:00Z')).toBeNull();
+    expect(adapter.fromIso8601('1/1/2017')).toBeNull();
+    expect(adapter.fromIso8601('2017-01-01T')).toBeNull();
+  });
 });
 
+
+describe('NativeDateAdapter with MAT_DATE_LOCALE override', () => {
+  let adapter: NativeDateAdapter;
+
+  beforeEach(async(() => {
+    TestBed.configureTestingModule({
+      imports: [NativeDateModule],
+      providers: [{provide: MAT_DATE_LOCALE, useValue: 'da-DK'}]
+    }).compileComponents();
+  }));
+
+  beforeEach(inject([DateAdapter], (d: NativeDateAdapter) => {
+    adapter = d;
+  }));
+
+  it('should take the default locale id from the MAT_DATE_LOCALE injection token', () => {
+    const expectedValue = SUPPORTS_INTL ?
+        ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'] :
+        ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+    expect(adapter.getDayOfWeekNames('long')).toEqual(expectedValue);
+  });
+
+});
 
 describe('NativeDateAdapter with LOCALE_ID override', () => {
   let adapter: NativeDateAdapter;
@@ -313,7 +383,7 @@ describe('NativeDateAdapter with LOCALE_ID override', () => {
     adapter = d;
   }));
 
-  it('should take the default locale id from the LOCALE_ID injection token', () => {
+  it('should cascade locale id from the LOCALE_ID injection token to MAT_DATE_LOCALE', () => {
     const expectedValue = SUPPORTS_INTL ?
         ['søndag', 'mandag', 'tirsdag', 'onsdag', 'torsdag', 'fredag', 'lørdag'] :
         ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

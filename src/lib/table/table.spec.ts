@@ -1,28 +1,23 @@
-import {async, ComponentFixture, TestBed} from '@angular/core/testing';
+import {async, TestBed} from '@angular/core/testing';
 import {Component, ViewChild} from '@angular/core';
-import {CdkTable, DataSource, CdkTableModule} from '@angular/cdk';
-import {} from '../core/data-table/data-source';
+import {DataSource} from '@angular/cdk/collections';
 import {BehaviorSubject} from 'rxjs/BehaviorSubject';
 import {Observable} from 'rxjs/Observable';
-import {MdTableModule} from './index';
+import {MatTableModule} from './index';
+import {MatTable} from './table';
 
-describe('MdTable', () => {
-  let fixture: ComponentFixture<SimpleMdTableApp>;
-
+describe('MatTable', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      imports: [MdTableModule, CdkTableModule],
-      declarations: [SimpleMdTableApp],
+      imports: [MatTableModule],
+      declarations: [MatTableApp, MatTableWithWhenRowApp],
     }).compileComponents();
   }));
 
-  beforeEach(() => {
-    fixture = TestBed.createComponent(SimpleMdTableApp);
+  it('should be able to create a table with the right content and without when row', () => {
+    let fixture = TestBed.createComponent(MatTableApp);
     fixture.detectChanges();
-    fixture.detectChanges();
-  });
 
-  it('should create a table with the right content', () => {
     const tableElement = fixture.nativeElement.querySelector('.mat-table');
     const headerRow = tableElement.querySelectorAll('.mat-header-cell');
     expectTextContent(headerRow[0], 'Column A');
@@ -30,12 +25,32 @@ describe('MdTable', () => {
     expectTextContent(headerRow[2], 'Column C');
 
     const rows = tableElement.querySelectorAll('.mat-row');
-    for (let i = 0; i < rows.length; i++) {
+
+    // First three rows use columns ['column_a', 'column_b', 'column_c']
+    for (let i = 0; i < 3; i++) {
       const cells = rows[i].querySelectorAll('.mat-cell');
       expectTextContent(cells[0], `a_${i + 1}`);
       expectTextContent(cells[1], `b_${i + 1}`);
       expectTextContent(cells[2], `c_${i + 1}`);
     }
+
+    // Fourth row uses a special when predicate to show a different colummn
+    expect(rows[3].textContent.trim()).toBe('fourth_row');
+  });
+
+  it('should create a table with special when row', () => {
+    let fixture = TestBed.createComponent(MatTableWithWhenRowApp);
+    fixture.detectChanges();
+
+    const tableElement = fixture.nativeElement.querySelector('.mat-table');
+    const headerRow = tableElement.querySelectorAll('.mat-header-cell');
+    expectTextContent(headerRow[0], 'Column A');
+
+    const rows = tableElement.querySelectorAll('.mat-row');
+    expect(rows[0].textContent.trim()).toBe('a_1');
+    expect(rows[1].textContent.trim()).toBe('a_2');
+    expect(rows[2].textContent.trim()).toBe('a_3');
+    expect(rows[3].textContent.trim()).toBe('fourth_row');
   });
 });
 
@@ -60,7 +75,7 @@ class FakeDataSource extends DataSource<TestData> {
 
   constructor() {
     super();
-    for (let i = 0; i < 3; i++) { this.addData(); }
+    for (let i = 0; i < 4; i++) { this.addData(); }
   }
 
   connect(): Observable<TestData[]> {
@@ -85,31 +100,62 @@ class FakeDataSource extends DataSource<TestData> {
 
 @Component({
   template: `
-    <md-table [dataSource]="dataSource">
-      <ng-container cdkColumnDef="column_a">
-        <md-header-cell *cdkHeaderCellDef> Column A</md-header-cell>
-        <md-cell *cdkCellDef="let row"> {{row.a}}</md-cell>
+    <mat-table [dataSource]="dataSource">
+      <ng-container matColumnDef="column_a">
+        <mat-header-cell *matHeaderCellDef> Column A</mat-header-cell>
+        <mat-cell *matCellDef="let row"> {{row.a}}</mat-cell>
       </ng-container>
 
-      <ng-container cdkColumnDef="column_b">
-        <md-header-cell *cdkHeaderCellDef> Column B</md-header-cell>
-        <md-cell *cdkCellDef="let row"> {{row.b}}</md-cell>
+      <ng-container matColumnDef="column_b">
+        <mat-header-cell *matHeaderCellDef> Column B</mat-header-cell>
+        <mat-cell *matCellDef="let row"> {{row.b}}</mat-cell>
       </ng-container>
 
-      <ng-container cdkColumnDef="column_c">
-        <md-header-cell *cdkHeaderCellDef> Column C</md-header-cell>
-        <md-cell *cdkCellDef="let row"> {{row.c}}</md-cell>
+      <ng-container matColumnDef="column_c">
+        <mat-header-cell *matHeaderCellDef> Column C</mat-header-cell>
+        <mat-cell *matCellDef="let row"> {{row.c}}</mat-cell>
       </ng-container>
 
-      <md-header-row *cdkHeaderRowDef="columnsToRender"></md-header-row>
-      <md-row *cdkRowDef="let row; columns: columnsToRender"></md-row>
-    </md-table>
+      <ng-container matColumnDef="special_column">
+        <mat-cell *matCellDef="let row"> fourth_row </mat-cell>
+      </ng-container>
+
+      <mat-header-row *matHeaderRowDef="columnsToRender"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: columnsToRender"></mat-row>
+      <mat-row *matRowDef="let row; columns: ['special_column']; when: isFourthRow"></mat-row>
+    </mat-table>
   `
 })
-class SimpleMdTableApp {
+class MatTableApp {
   dataSource: FakeDataSource | null = new FakeDataSource();
   columnsToRender = ['column_a', 'column_b', 'column_c'];
+  isFourthRow = (_rowData: TestData, i: number) => i == 3;
 
-  @ViewChild(CdkTable) table: CdkTable<TestData>;
+  @ViewChild(MatTable) table: MatTable<TestData>;
 }
 
+
+@Component({
+  template: `
+    <mat-table [dataSource]="dataSource">
+      <ng-container matColumnDef="column_a">
+        <mat-header-cell *matHeaderCellDef> Column A</mat-header-cell>
+        <mat-cell *matCellDef="let row"> {{row.a}}</mat-cell>
+      </ng-container>
+
+      <ng-container matColumnDef="special_column">
+        <mat-cell *matCellDef="let row"> fourth_row </mat-cell>
+      </ng-container>
+
+      <mat-header-row *matHeaderRowDef="['column_a']"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: ['column_a']"></mat-row>
+      <mat-row *matRowDef="let row; columns: ['special_column']; when: isFourthRow"></mat-row>
+    </mat-table>
+  `
+})
+class MatTableWithWhenRowApp {
+  dataSource: FakeDataSource | null = new FakeDataSource();
+  isFourthRow = (_rowData: TestData, i: number) => i == 3;
+
+  @ViewChild(MatTable) table: MatTable<TestData>;
+}

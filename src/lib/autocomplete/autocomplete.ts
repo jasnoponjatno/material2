@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright Google Inc. All Rights Reserved.
+ * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
@@ -18,9 +18,12 @@ import {
   ViewEncapsulation,
   ChangeDetectorRef,
   ChangeDetectionStrategy,
+  EventEmitter,
+  Output,
 } from '@angular/core';
-import {MdOption} from '../core';
-import {ActiveDescendantKeyManager} from '../core/a11y/activedescendant-key-manager';
+import {MatOption, MatOptgroup} from '@angular/material/core';
+import {ActiveDescendantKeyManager} from '@angular/cdk/a11y';
+
 
 /**
  * Autocomplete IDs need to be unique across components, so this counter exists outside of
@@ -28,30 +31,38 @@ import {ActiveDescendantKeyManager} from '../core/a11y/activedescendant-key-mana
  */
 let _uniqueAutocompleteIdCounter = 0;
 
-export type AutocompletePositionY = 'above' | 'below';
+/** Event object that is emitted when an autocomplete option is selected */
+export class MatAutocompleteSelectedEvent {
+  constructor(public source: MatAutocomplete, public option: MatOption) { }
+}
+
 
 @Component({
   moduleId: module.id,
-  selector: 'md-autocomplete, mat-autocomplete',
+  selector: 'mat-autocomplete',
   templateUrl: 'autocomplete.html',
   styleUrls: ['autocomplete.css'],
   encapsulation: ViewEncapsulation.None,
+  preserveWhitespaces: false,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  exportAs: 'mdAutocomplete',
+  exportAs: 'matAutocomplete',
   host: {
     'class': 'mat-autocomplete'
   }
 })
-export class MdAutocomplete implements AfterContentInit {
+export class MatAutocomplete implements AfterContentInit {
 
   /** Manages active item in option list based on key events. */
-  _keyManager: ActiveDescendantKeyManager;
-
-  /** Whether the autocomplete panel displays above or below its trigger. */
-  positionY: AutocompletePositionY = 'below';
+  _keyManager: ActiveDescendantKeyManager<MatOption>;
 
   /** Whether the autocomplete panel should be visible, depending on option length. */
   showPanel = false;
+
+  /** Whether the autocomplete panel is open. */
+  get isOpen(): boolean {
+    return this._isOpen && this.showPanel;
+  }
+  _isOpen: boolean = false;
 
   /** @docs-private */
   @ViewChild(TemplateRef) template: TemplateRef<any>;
@@ -60,20 +71,42 @@ export class MdAutocomplete implements AfterContentInit {
   @ViewChild('panel') panel: ElementRef;
 
   /** @docs-private */
-  @ContentChildren(MdOption) options: QueryList<MdOption>;
+  @ContentChildren(MatOption, { descendants: true }) options: QueryList<MatOption>;
+
+  /** @docs-private */
+  @ContentChildren(MatOptgroup) optionGroups: QueryList<MatOptgroup>;
 
   /** Function that maps an option's control value to its display value in the trigger. */
   @Input() displayWith: ((value: any) => string) | null = null;
 
   @Input() setLastWord: boolean = false;
 
-  /** Unique ID to be used by autocomplete trigger's "aria-owns" property. */
-  id: string = `md-autocomplete-${_uniqueAutocompleteIdCounter++}`;
+  /** Event that is emitted whenever an option from the list is selected. */
+  @Output() optionSelected: EventEmitter<MatAutocompleteSelectedEvent> =
+      new EventEmitter<MatAutocompleteSelectedEvent>();
 
-  constructor(private _changeDetectorRef: ChangeDetectorRef) { }
+  /**
+   * Takes classes set on the host mat-autocomplete element and applies them to the panel
+   * inside the overlay container to allow for easy styling.
+   */
+  @Input('class')
+  set classList(classList: string) {
+    if (classList && classList.length) {
+      classList.split(' ').forEach(className => this._classList[className.trim()] = true);
+      this._elementRef.nativeElement.className = '';
+    }
+  }
+  _classList: {[key: string]: boolean} = {};
+
+  /** Unique ID to be used by autocomplete trigger's "aria-owns" property. */
+  id: string = `mat-autocomplete-${_uniqueAutocompleteIdCounter++}`;
+
+  constructor(private _changeDetectorRef: ChangeDetectorRef, private _elementRef: ElementRef) { }
 
   ngAfterContentInit() {
-    this._keyManager = new ActiveDescendantKeyManager(this.options).withWrap();
+    this._keyManager = new ActiveDescendantKeyManager<MatOption>(this.options).withWrap();
+    // Set the initial visibiity state.
+    this._setVisibility();
   }
 
   /**
@@ -93,21 +126,16 @@ export class MdAutocomplete implements AfterContentInit {
 
   /** Panel should hide itself when the option list is empty. */
   _setVisibility() {
-    Promise.resolve().then(() => {
-      this.showPanel = !!this.options.length;
-      this._changeDetectorRef.markForCheck();
-    });
-  }
+    this.showPanel = !!this.options.length;
+    this._classList['mat-autocomplete-visible'] = this.showPanel;
+    this._classList['mat-autocomplete-hidden'] = !this.showPanel;
+    this._changeDetectorRef.markForCheck();
+}
 
-  /** Sets a class on the panel based on its position (used to set y-offset). */
-  _getClassList() {
-    return {
-      'mat-autocomplete-panel-below': this.positionY === 'below',
-      'mat-autocomplete-panel-above': this.positionY === 'above',
-      'mat-autocomplete-visible': this.showPanel,
-      'mat-autocomplete-hidden': !this.showPanel
-    };
+  /** Emits the `select` event. */
+  _emitSelectEvent(option: MatOption): void {
+    const event = new MatAutocompleteSelectedEvent(this, option);
+    this.optionSelected.emit(event);
   }
-
 }
 

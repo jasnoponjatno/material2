@@ -2,7 +2,7 @@ import * as child_process from 'child_process';
 import * as fs from 'fs';
 import * as gulp from 'gulp';
 import * as path from 'path';
-import {buildConfig, sequenceTask} from 'material2-build-tools';
+import {buildConfig} from 'material2-build-tools';
 
 /* Those imports lack typings. */
 const gulpClean = require('gulp-clean');
@@ -122,19 +122,6 @@ export function cleanTask(glob: string) {
   return () => gulp.src(glob, { read: false }).pipe(gulpClean(null));
 }
 
-
-/** Build an task that depends on all application build tasks. */
-export function buildAppTask(appName: string) {
-  const buildTasks = ['ts', 'scss', 'assets']
-    .map(taskName => `:build:${appName}:${taskName}`)
-    .filter(taskName => gulp.hasTask(taskName));
-
-  return sequenceTask(
-    'material:clean-build',
-    [...buildTasks]
-  );
-}
-
 /**
  * Create a task that serves a given directory in the project.
  * The server rewrites all node_module/ or dist/ requests to the correct directory.
@@ -148,12 +135,17 @@ export function serverTask(packagePath: string, livereload = true) {
       root: projectDir,
       livereload: livereload,
       port: 4200,
-      fallback: path.join(packagePath, 'index.html'),
       middleware: () => {
         return [httpRewrite.getMiddleware([
+          // Rewrite the node_modules/ and dist/ folder to the real paths. This is a trick to
+          // avoid that those folders will be rewritten to the specified package path.
           { from: '^/node_modules/(.*)$', to: '/node_modules/$1' },
           { from: '^/dist/(.*)$', to: '/dist/$1' },
-          { from: '^(.*)$', to: `/${relativePath}/$1` }
+          // Rewrite every path that doesn't point to a specific file to the index.html file.
+          // This is necessary for Angular's routing using the HTML5 History API.
+          { from: '^/[^.]+$', to: `/${relativePath}/index.html`},
+          // Rewrite any path that didn't match a pattern before to the specified package path.
+          { from: '^(.*)$', to: `/${relativePath}/$1` },
         ])];
       }
     });

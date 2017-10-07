@@ -76,7 +76,8 @@ describe('menu', () => {
 
   it('should mirror classes on host to menu template in overlay', () => {
     page.trigger().click();
-    expect(page.menu().getAttribute('class')).toContain('mat-menu-panel custom');
+    expect(page.menu().getAttribute('class')).toContain('mat-menu-panel');
+    expect(page.menu().getAttribute('class')).toContain('custom');
   });
 
   describe('keyboard events', () => {
@@ -206,7 +207,7 @@ export class MenuPage {
   trigger = () => element(by.id('trigger'));
   triggerTwo = () => element(by.id('trigger-two'));
   backdrop = () => element(by.css('.cdk-overlay-backdrop'));
-  items = (index: number) => element.all(by.css('[md-menu-item]')).get(index);
+  items = (index: number) => element.all(by.css('[mat-menu-item]')).get(index);
   textArea = () => element(by.id('text'));
   beforeTrigger = () => element(by.id('before-t'));
   aboveTrigger = () => element(by.id('above-t'));

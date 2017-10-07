@@ -1,45 +1,39 @@
 /**
  * @license
- * Copyright Google Inc. All Rights Reserved.
+ * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
  */
 
+import {Direction, Directionality} from '@angular/cdk/bidi';
+import {ENTER, LEFT_ARROW, RIGHT_ARROW, SPACE} from '@angular/cdk/keycodes';
+import {startWith} from '@angular/cdk/rxjs';
 import {
-  ViewChild,
-  Component,
-  Input,
-  QueryList,
-  ElementRef,
-  ViewEncapsulation,
-  ContentChildren,
-  Output,
-  EventEmitter,
-  Optional,
   AfterContentChecked,
   AfterContentInit,
-  OnDestroy,
-  NgZone,
-  Renderer2,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
+  Component,
+  ContentChildren,
+  ElementRef,
+  EventEmitter,
+  Input,
+  OnDestroy,
+  Optional,
+  Output,
+  QueryList,
+  Renderer2,
+  ViewChild,
+  ViewEncapsulation,
 } from '@angular/core';
-import {
-  RIGHT_ARROW,
-  LEFT_ARROW,
-  ENTER,
-  Directionality,
-  Direction,
-  coerceBooleanProperty
-} from '../core';
-import {MdTabLabelWrapper} from './tab-label-wrapper';
-import {MdInkBar} from './ink-bar';
-import {Subscription} from 'rxjs/Subscription';
-import {auditTime, startWith} from '../core/rxjs/index';
-import {of as observableOf} from 'rxjs/observable/of';
+import {CanDisableRipple, mixinDisableRipple} from '@angular/material/core';
 import {merge} from 'rxjs/observable/merge';
-import {fromEvent} from 'rxjs/observable/fromEvent';
+import {of as observableOf} from 'rxjs/observable/of';
+import {Subscription} from 'rxjs/Subscription';
+import {MatInkBar} from './ink-bar';
+import {MatTabLabelWrapper} from './tab-label-wrapper';
+import {ViewportRuler} from '@angular/cdk/scrolling';
 
 
 /**
@@ -55,6 +49,11 @@ export type ScrollDirection = 'after' | 'before';
  */
 const EXAGGERATED_OVERSCROLL = 60;
 
+// Boilerplate for applying mixins to MatTabHeader.
+/** @docs-private */
+export class MatTabHeaderBase {}
+export const _MatTabHeaderMixinBase = mixinDisableRipple(MatTabHeaderBase);
+
 /**
  * The header of the tab group which displays a list of all the tabs in the tab group. Includes
  * an ink bar that follows the currently selected tab. When the tabs list's width exceeds the
@@ -64,20 +63,24 @@ const EXAGGERATED_OVERSCROLL = 60;
  */
 @Component({
   moduleId: module.id,
-  selector: 'md-tab-header, mat-tab-header',
+  selector: 'mat-tab-header',
   templateUrl: 'tab-header.html',
   styleUrls: ['tab-header.css'],
+  inputs: ['disableRipple'],
   encapsulation: ViewEncapsulation.None,
+  preserveWhitespaces: false,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     'class': 'mat-tab-header',
     '[class.mat-tab-header-pagination-controls-enabled]': '_showPaginationControls',
     '[class.mat-tab-header-rtl]': "_getLayoutDirection() == 'rtl'",
-  }
+  },
 })
-export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDestroy {
-  @ContentChildren(MdTabLabelWrapper) _labelWrappers: QueryList<MdTabLabelWrapper>;
-  @ViewChild(MdInkBar) _inkBar: MdInkBar;
+export class MatTabHeader extends _MatTabHeaderMixinBase
+    implements AfterContentChecked, AfterContentInit, OnDestroy, CanDisableRipple {
+
+  @ContentChildren(MatTabLabelWrapper) _labelWrappers: QueryList<MatTabLabelWrapper>;
+  @ViewChild(MatInkBar) _inkBar: MatInkBar;
   @ViewChild('tabListContainer') _tabListContainer: ElementRef;
   @ViewChild('tabList') _tabList: ElementRef;
 
@@ -91,7 +94,7 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
   private _selectedIndexChanged = false;
 
   /** Combines listeners that will re-align the ink bar whenever they're invoked. */
-  private _realignInkBar: Subscription | null = null;
+  private _realignInkBar = Subscription.EMPTY;
 
   /** Whether the controls for pagination should be displayed */
   _showPaginationControls = false;
@@ -118,16 +121,9 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
   get selectedIndex(): number { return this._selectedIndex; }
   set selectedIndex(value: number) {
     this._selectedIndexChanged = this._selectedIndex != value;
-
     this._selectedIndex = value;
     this._focusIndex = value;
   }
-
-  /** Whether ripples for the tab-header labels should be disabled or not. */
-  @Input()
-  get disableRipple(): boolean { return this._disableRipple; }
-  set disableRipple(value) { this._disableRipple = coerceBooleanProperty(value); }
-  private _disableRipple: boolean = false;
 
   /** Event emitted when the option is selected. */
   @Output() selectFocusedIndex = new EventEmitter();
@@ -135,12 +131,13 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
   /** Event emitted when a label is focused. */
   @Output() indexFocused = new EventEmitter();
 
-  constructor(
-    private _elementRef: ElementRef,
-    private _ngZone: NgZone,
-    private _renderer: Renderer2,
-    private _changeDetectorRef: ChangeDetectorRef,
-    @Optional() private _dir: Directionality) { }
+  constructor(private _elementRef: ElementRef,
+              private _renderer: Renderer2,
+              private _changeDetectorRef: ChangeDetectorRef,
+              private _viewportRuler: ViewportRuler,
+              @Optional() private _dir: Directionality) {
+    super();
+  }
 
   ngAfterContentChecked(): void {
     // If the number of tab labels have changed, check if scrolling should be enabled
@@ -178,7 +175,9 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
         this._focusPreviousTab();
         break;
       case ENTER:
+      case SPACE:
         this.selectFocusedIndex.emit(this.focusIndex);
+        event.preventDefault();
         break;
     }
   }
@@ -187,24 +186,17 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
    * Aligns the ink bar to the selected tab on load.
    */
   ngAfterContentInit() {
-    this._realignInkBar = this._ngZone.runOutsideAngular(() => {
-      let dirChange = this._dir ? this._dir.change : observableOf(null);
-      let resize = typeof window !== 'undefined' ?
-          auditTime.call(fromEvent(window, 'resize'), 10) :
-          observableOf(null);
+    const dirChange = this._dir ? this._dir.change : observableOf(null);
+    const resize = this._viewportRuler.change(150);
 
-      return startWith.call(merge(dirChange, resize), null).subscribe(() => {
-        this._updatePagination();
-        this._alignInkBarToSelectedTab();
-      });
+    this._realignInkBar = startWith.call(merge(dirChange, resize), null).subscribe(() => {
+      this._updatePagination();
+      this._alignInkBarToSelectedTab();
     });
   }
 
   ngOnDestroy() {
-    if (this._realignInkBar) {
-      this._realignInkBar.unsubscribe();
-      this._realignInkBar = null;
-    }
+    this._realignInkBar.unsubscribe();
   }
 
   /**
@@ -280,7 +272,7 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
    */
   _moveFocus(offset: number) {
     if (this._labelWrappers) {
-      const tabs: MdTabLabelWrapper[] = this._labelWrappers.toArray();
+      const tabs: MatTabLabelWrapper[] = this._labelWrappers.toArray();
 
       for (let i = this.focusIndex + offset; i < tabs.length && i >= 0; i += offset) {
         if (this._isValidIndex(i)) {
@@ -385,14 +377,18 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
    * should be called sparingly.
    */
   _checkPaginationEnabled() {
-    this._showPaginationControls =
+    const isEnabled =
         this._tabList.nativeElement.scrollWidth > this._elementRef.nativeElement.offsetWidth;
 
-    if (!this._showPaginationControls) {
+    if (!isEnabled) {
       this.scrollDistance = 0;
     }
 
-    this._changeDetectorRef.markForCheck();
+    if (isEnabled !== this._showPaginationControls) {
+      this._changeDetectorRef.markForCheck();
+    }
+
+    this._showPaginationControls = isEnabled;
   }
 
   /**
@@ -426,9 +422,9 @@ export class MdTabHeader implements AfterContentChecked, AfterContentInit, OnDes
 
   /** Tells the ink-bar to align itself to the current label wrapper */
   private _alignInkBarToSelectedTab(): void {
-    const selectedLabelWrapper = this._labelWrappers && this._labelWrappers.length
-        ? this._labelWrappers.toArray()[this.selectedIndex].elementRef.nativeElement
-        : null;
+    const selectedLabelWrapper = this._labelWrappers && this._labelWrappers.length ?
+        this._labelWrappers.toArray()[this.selectedIndex].elementRef.nativeElement :
+        null;
 
     this._inkBar.alignToElement(selectedLabelWrapper);
   }

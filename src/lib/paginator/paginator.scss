@@ -33,10 +33,7 @@ $mat-paginator-button-increment-icon-margin: 16px;
 
 .mat-paginator-page-size-select {
   margin: $mat-paginator-selector-margin;
-
-  .mat-select-trigger {
-    min-width: $mat-paginator-selector-trigger-min-width;
-  }
+  width: $mat-paginator-selector-trigger-min-width;
 }
 
 .mat-paginator-range-label {

@@ -1,20 +1,20 @@
 import {async, ComponentFixture, TestBed} from '@angular/core/testing';
-import {Component} from '@angular/core';
+import {Component, ViewChild} from '@angular/core';
 import {By} from '@angular/platform-browser';
-import {MdYearView} from './year-view';
-import {MdCalendarBody} from './calendar-body';
-import {MdNativeDateModule} from '../core/datetime/index';
-import {FEB, JAN, MAR} from '../core/testing/month-constants';
+import {MatYearView} from './year-view';
+import {MatCalendarBody} from './calendar-body';
+import {MatNativeDateModule} from '@angular/material/core';
+import {FEB, JAN, JUL, JUN, MAR} from '@angular/material/core';
 
-describe('MdYearView', () => {
+describe('MatYearView', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       imports: [
-        MdNativeDateModule,
+        MatNativeDateModule,
       ],
       declarations: [
-        MdCalendarBody,
-        MdYearView,
+        MatCalendarBody,
+        MatYearView,
 
         // Test components.
         StandardYearView,
@@ -34,7 +34,7 @@ describe('MdYearView', () => {
       fixture = TestBed.createComponent(StandardYearView);
       fixture.detectChanges();
 
-      let yearViewDebugElement = fixture.debugElement.query(By.directive(MdYearView));
+      let yearViewDebugElement = fixture.debugElement.query(By.directive(MatYearView));
       yearViewNativeElement = yearViewDebugElement.nativeElement;
       testComponent = fixture.componentInstance;
     });
@@ -76,6 +76,16 @@ describe('MdYearView', () => {
       expect((cellEls[0] as HTMLElement).innerText.trim()).toBe('JAN');
       expect(cellEls[0].classList).toContain('mat-calendar-body-active');
     });
+
+    it('should allow selection of month with less days than current active date', () => {
+      testComponent.date = new Date(2017, JUL, 31);
+      fixture.detectChanges();
+
+      expect(testComponent.yearView._monthSelected(JUN));
+      fixture.detectChanges();
+
+      expect(testComponent.selected).toEqual(new Date(2017, JUN, 30));
+    });
   });
 
   describe('year view with date filter', () => {
@@ -87,7 +97,7 @@ describe('MdYearView', () => {
       fixture = TestBed.createComponent(YearViewWithDateFilter);
       fixture.detectChanges();
 
-      let yearViewDebugElement = fixture.debugElement.query(By.directive(MdYearView));
+      let yearViewDebugElement = fixture.debugElement.query(By.directive(MatYearView));
       yearViewNativeElement = yearViewDebugElement.nativeElement;
       testComponent = fixture.componentInstance;
     });
@@ -103,16 +113,18 @@ describe('MdYearView', () => {
 
 @Component({
   template: `
-    <md-year-view [activeDate]="date" [(selected)]="selected"></md-year-view>`,
+    <mat-year-view [activeDate]="date" [(selected)]="selected"></mat-year-view>`,
 })
 class StandardYearView {
   date = new Date(2017, JAN, 5);
   selected = new Date(2017, MAR, 10);
+
+  @ViewChild(MatYearView) yearView: MatYearView<Date>;
 }
 
 
 @Component({
-  template: `<md-year-view [activeDate]="activeDate" [dateFilter]="dateFilter"></md-year-view>`
+  template: `<mat-year-view [activeDate]="activeDate" [dateFilter]="dateFilter"></mat-year-view>`
 })
 class YearViewWithDateFilter {
   activeDate = new Date(2017, JAN, 1);

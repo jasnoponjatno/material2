@@ -1,20 +1,20 @@
 /**
  * @license
- * Copyright Google Inc. All Rights Reserved.
+ * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
  */
 
-import {OverlayRef} from '../core';
+import {OverlayRef} from '@angular/cdk/overlay';
 import {Observable} from 'rxjs/Observable';
 import {Subject} from 'rxjs/Subject';
-import {MdSnackBarContainer} from './snack-bar-container';
+import {MatSnackBarContainer} from './snack-bar-container';
 
 /**
  * Reference to a snack bar dispatched from the snack bar service.
  */
-export class MdSnackBarRef<T> {
+export class MatSnackBarRef<T> {
   /** The instance of the component making up the content of the snack bar. */
   instance: T;
 
@@ -22,16 +22,16 @@ export class MdSnackBarRef<T> {
    * The instance of the component making up the content of the snack bar.
    * @docs-private
    */
-  containerInstance: MdSnackBarContainer;
+  containerInstance: MatSnackBarContainer;
 
   /** Subject for notifying the user that the snack bar has closed. */
-  private _afterClosed: Subject<any> = new Subject();
+  private _afterClosed = new Subject<void>();
 
   /** Subject for notifying the user that the snack bar has opened and appeared. */
-  private _afterOpened: Subject<any>;
+  private _afterOpened = new Subject<void>();
 
   /** Subject for notifying the user that the snack bar action was called. */
-  private _onAction: Subject<any> = new Subject();
+  private _onAction = new Subject<void>();
 
   /**
    * Timeout ID for the duration setTimeout call. Used to clear the timeout if the snackbar is
@@ -39,12 +39,12 @@ export class MdSnackBarRef<T> {
    */
   private _durationTimeoutId: number;
 
-  constructor(containerInstance: MdSnackBarContainer,
+  constructor(containerInstance: MatSnackBarContainer,
               private _overlayRef: OverlayRef) {
     this.containerInstance = containerInstance;
     // Dismiss snackbar on action.
     this.onAction().subscribe(() => this.dismiss());
-    containerInstance._onExit().subscribe(() => this._finishDismiss());
+    containerInstance._onExit.subscribe(() => this._finishDismiss());
   }
 
   /** Dismisses the snack bar. */
@@ -55,17 +55,17 @@ export class MdSnackBarRef<T> {
     clearTimeout(this._durationTimeoutId);
   }
 
-  /** Dismisses the snack bar after some duration */
-  _dismissAfter(duration: number): void {
-    this._durationTimeoutId = setTimeout(() => this.dismiss(), duration);
-  }
-
   /** Marks the snackbar action clicked. */
-  _action(): void {
+  closeWithAction(): void {
     if (!this._onAction.closed) {
       this._onAction.next();
       this._onAction.complete();
     }
+  }
+
+  /** Dismisses the snack bar after some duration */
+  _dismissAfter(duration: number): void {
+    this._durationTimeoutId = setTimeout(() => this.dismiss(), duration);
   }
 
   /** Marks the snackbar as opened */
@@ -90,7 +90,7 @@ export class MdSnackBarRef<T> {
 
   /** Gets an observable that is notified when the snack bar has opened and appeared. */
   afterOpened(): Observable<void> {
-    return this.containerInstance._onEnter();
+    return this.containerInstance._onEnter;
   }
 
   /** Gets an observable that is notified when the snack bar action is called. */

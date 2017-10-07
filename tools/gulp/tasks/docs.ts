@@ -2,6 +2,7 @@ import {task, src, dest} from 'gulp';
 import {Dgeni} from 'dgeni';
 import * as path from 'path';
 import {buildConfig} from 'material2-build-tools';
+import {apiDocsPackage} from '../../dgeni/index';
 
 // There are no type definitions available for these imports.
 const markdown = require('gulp-markdown');
@@ -64,15 +65,31 @@ task('docs', [
   'highlight-examples',
   'api-docs',
   'minified-api-docs',
+  'build-examples-module',
   'plunker-example-assets',
 ]);
 
 /** Generates html files from the markdown overviews and guides. */
 task('markdown-docs', () => {
+  // Extend the renderer for custom heading anchor rendering
+  markdown.marked.Renderer.prototype.heading = (text: string, level: number): string => {
+    if (level === 3 || level === 4) {
+      const escapedText = text.toLowerCase().replace(/[^\w]+/g, '-');
+      return `
+        <h${level} id="${escapedText}" class="docs-header-link">
+          <div header-link="${escapedText}"></div>
+          ${text}
+        </h${level}>
+      `;
+    } else {
+      return `<h${level}>${text}</h${level}>`;
+    }
+  };
+
   return src(['src/lib/**/*.md', 'src/cdk/**/*.md', 'guides/*.md'])
       .pipe(markdown({
         // Add syntax highlight using highlight.js
-        highlight: (code: string, language: string) => {
+        highlight: (code: string, language: string): string => {
           if (language) {
             // highlight.js expects "typescript" written out, while Github supports "ts".
             let lang = language.toLowerCase() === 'ts' ? 'typescript' : language;
@@ -93,9 +110,9 @@ task('markdown-docs', () => {
  */
 task('highlight-examples', () => {
   // rename files to fit format: [filename]-[filetype].html
-  const renameFile = (path: any) => {
-    const extension = path.extname.slice(1);
-    path.basename = `${path.basename}-${extension}`;
+  const renameFile = (filePath: any) => {
+    const extension = filePath.extname.slice(1);
+    filePath.basename = `${filePath.basename}-${extension}`;
   };
 
   return src('src/material-examples/**/*.+(html|css|ts)')
@@ -107,8 +124,7 @@ task('highlight-examples', () => {
 
 /** Generates API docs from the source JsDoc using dgeni. */
 task('api-docs', () => {
-  const docsPackage = require(path.resolve(__dirname, '../../dgeni'));
-  const docs = new Dgeni([docsPackage]);
+  const docs = new Dgeni([apiDocsPackage]);
   return docs.generate();
 });
 

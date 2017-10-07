@@ -26,8 +26,8 @@ const LOCAL_GOLDENS = path.join(SCREENSHOT_DIR, `golds`);
 const LOCAL_DIFFS = path.join(SCREENSHOT_DIR, `diff`);
 
 // Directory to which untrusted screenshot results are temporarily written
-//   (without authentication required) before they are verified and copied to
-//   the final storage location.
+// (without authentication required) before they are verified and copied to
+// the final storage location.
 const TEMP_FOLDER = 'untrustedInbox';
 const FIREBASE_REPORT = `${TEMP_FOLDER}/screenshot/reports`;
 const FIREBASE_IMAGE = `${TEMP_FOLDER}/screenshot/images`;
@@ -44,15 +44,41 @@ task('screenshots', () => {
   } else if (prNumber) {
     const firebaseApp = connectFirebaseScreenshots();
     const database = firebaseApp.database();
+    let lastActionTime = Date.now();
+
+    console.log(`  Starting screenshots task with results from e2e task...`);
 
     return uploadTravisJobInfo(database, prNumber)
-      .then(() => downloadGoldScreenshotFiles(database))
-      .then(() => compareScreenshotFiles(database, prNumber))
-      .then(passedAll => setPullRequestResult(database, prNumber, passedAll))
-      .then(() => uploadScreenshotsData(database, 'diff', prNumber))
-      .then(() => uploadScreenshotsData(database, 'test', prNumber))
-      .catch((err: any) => console.error(err))
-      .then(() => firebaseApp.delete());
+      .then(() => {
+        console.log(`  Downloading screenshot golds from Firebase...`);
+        lastActionTime = Date.now();
+        return downloadGoldScreenshotFiles(database);
+      })
+      .then(() => {
+        console.log(`  Downloading golds done (took ${Date.now() - lastActionTime}ms)`);
+        console.log(`  Comparing screenshots golds to test result screenshots...`);
+        lastActionTime = Date.now();
+        return compareScreenshotFiles(database, prNumber);
+      })
+      .then(passedAll => {
+        console.log(`  Comparison done (took ${Date.now() - lastActionTime}ms)`);
+        console.log(`  Uploading screenshot diff results to Firebase and GitHub...`);
+        lastActionTime = Date.now();
+        return Promise.all([
+          setPullRequestResult(database, prNumber, passedAll),
+          uploadScreenshotsData(database, 'diff', prNumber),
+          uploadScreenshotsData(database, 'test', prNumber),
+        ]);
+      })
+      .then(() => {
+        console.log(`  Uploading results done (took ${Date.now() - lastActionTime}ms)`);
+        firebaseApp.delete();
+      })
+      .catch((err: any) => {
+        console.error(`  Screenshot tests encountered an error!`);
+        console.error(err);
+        firebaseApp.delete();
+      });
   }
 });
 

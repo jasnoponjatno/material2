@@ -1,6 +1,6 @@
 /**
  * @license
- * Copyright Google Inc. All Rights Reserved.
+ * Copyright Google LLC All Rights Reserved.
  *
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.io/license
@@ -15,7 +15,7 @@ import {
   Optional,
   ChangeDetectorRef,
 } from '@angular/core';
-import {UniqueSelectionDispatcher} from '../core';
+import {UniqueSelectionDispatcher} from '@angular/cdk/collections';
 import {CdkAccordion} from './accordion';
 
 /** Used to generate unique ID for each expansion panel. */
@@ -27,16 +27,18 @@ let nextId = 0;
  */
 @Injectable()
 export class AccordionItem implements OnDestroy {
-  /** Event emitted every time the MdAccordionChild is closed. */
+  /** Event emitted every time the AccordionItem is closed. */
   @Output() closed = new EventEmitter<void>();
-  /** Event emitted every time the MdAccordionChild is opened. */
+  /** Event emitted every time the AccordionItem is opened. */
   @Output() opened = new EventEmitter<void>();
-  /** Event emitted when the MdAccordionChild is destroyed. */
+  /** Event emitted when the AccordionItem is destroyed. */
   @Output() destroyed = new EventEmitter<void>();
-  /** The unique MdAccordionChild id. */
+  /** The unique AccordionItem id. */
   readonly id = `cdk-accordion-child-${nextId++}`;
-  /** Whether the MdAccordionChild is expanded. */
-  @Input() get expanded(): boolean { return this._expanded; }
+
+  /** Whether the AccordionItem is expanded. */
+  @Input()
+  get expanded(): boolean { return this._expanded; }
   set expanded(expanded: boolean) {
     // Only emit events and update the internal value if the value changes.
     if (this._expanded !== expanded) {
