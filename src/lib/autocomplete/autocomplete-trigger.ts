@@ -423,7 +423,7 @@ export class MatAutocompleteTrigger implements ControlValueAccessor, OnDestroy {
     if (event && event.source) {
       this._clearPreviousSelectedOption(event.source);
       let value = event.source.value;
-      if (this._matAutocomplete.setLastWord) {
+      if (this.autocomplete.setLastWord) {
         let splittedValue = this._element.nativeElement.value.trim().split(' ');
         splittedValue[splittedValue.length - 1] = value;
         let newValue = splittedValue.join(' ');
